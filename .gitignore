@@ -1,0 +1,19 @@
+
+
+# Ignore node_modules folders everywhere
+**/node_modules/
+
+# Ignore .env files everywhere
+**/.env
+
+# Optional: Ignore logs
+**/logs
+*.log
+
+# Optional: Ignore build and dist folders
+**/dist/
+**/build/
+
+# Optional: Mac and VSCode junk
+.DS_Store
+.vscode/
