@@ -3,34 +3,39 @@ import React, { useState, FormEvent, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
-import { RootState } from "../../../../infra/redux/store";
-import { TrainerRepository } from "../../../../infra/api/trainerApi";
-import { LoginTrainerUseCase } from "../../../../app/useCases/trainer/loginTrainer";
-import { login } from "../../../../infra/redux/slices/authSlice";
+import type { AppDispatch, RootState } from "../../../../infra/redux/store";
+import { loginThunk } from "../../../../infra/redux/slices/authSlice";
 import { AxiosError } from "axios";
-
-const trainerRepository = new TrainerRepository();
-const loginTrainerUseCase = new LoginTrainerUseCase(trainerRepository);
 
 const TrainerLogin: React.FC = () => {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
+  const dispatch = useDispatch<AppDispatch>(); // Use typed dispatch
+  const { isAuthenticated, trainer } = useSelector((state: RootState) => state.auth);
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (isAuthenticated && user?.role === "trainer") {
-      if (user.verifiedByAdmin) {
-        navigate("/trainer/dashboard");
-      } else {
-        navigate("/trainer/pending-approval");
-      }
+useEffect(() => {
+  console.log("useEffect triggered", { isAuthenticated, trainer });
+  if (isAuthenticated && trainer?.role === "trainer") {
+    console.log("Navigating based on verifiedByAdmin:", trainer.verifiedByAdmin);
+    if (trainer.verifiedByAdmin) {
+      toast.success(`Welcome back, ${trainer.name}! Successfully logged in.`, {
+        position: "top-right",
+        autoClose: 3000,
+      });
+      navigate("/trainer/dashboard");
+    } else {
+      toast.info("Your account is pending admin approval.", {
+        position: "top-right",
+        autoClose: 3000,
+      });
+      navigate("/trainer/pending-approval");
     }
-  }, [isAuthenticated, user, navigate]);
+  }
+}, [isAuthenticated, trainer, navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -45,8 +50,8 @@ const TrainerLogin: React.FC = () => {
     if (!loginData.email) {
       newErrors.email = "Email is required";
       valid = false;
-    } else if (!/^[a-zA-Z0-9._%+-]+@gmail\.com$/.test(loginData.email)) {
-      newErrors.email = "Email must be a valid Gmail address";
+    } else if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(loginData.email)) {
+      newErrors.email = "Email must be a valid email address"; // Updated message to match regex
       valid = false;
     }
     if (!loginData.password || loginData.password.length < 6) {
@@ -69,38 +74,13 @@ const TrainerLogin: React.FC = () => {
     setError(null);
 
     try {
-      const response = await loginTrainerUseCase.execute(loginData);
-      const { trainer } = response;
-
-      dispatch(
-        login({
-          id: trainer.id,
-          name: trainer.name,
-          email: trainer.email,
-          role: trainer.role,
-          verifiedByAdmin: trainer.verifiedByAdmin,
-          isVerified: trainer.isVerified,
-          profilePic: null,
-        })
-      );
-
-      if (trainer.verifiedByAdmin) {
-        toast.success(`Welcome back, ${trainer.name}! Successfully logged in.`, {
-          position: "top-right",
-          autoClose: 3000,
-        });
-        navigate("/trainer/dashboard");
-      } else {
-        toast.info("Your account is pending admin approval.", {
-          position: "top-right",
-          autoClose: 3000,
-        });
-        navigate("/trainer/pending-approval");
-      }
+      await dispatch(loginThunk(loginData)).unwrap(); // Dispatch without storing result
+      // Navigation is handled by useEffect
     } catch (err) {
       const axiosError = err as AxiosError<{ message?: string }>;
-      setError(axiosError.response?.data?.message || "Login failed—check credentials");
-      toast.error(axiosError.response?.data?.message || "Login failed.");
+      const errorMessage = axiosError.response?.data?.message || "Login failed—check credentials";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -115,6 +95,7 @@ const TrainerLogin: React.FC = () => {
               src="https://ai-public.creatie.ai/gen_page/logo_placeholder.png"
               alt="FitHub Logo"
               className="h-12"
+              loading="lazy" // Added for performance
             />
             <span className="ml-3 text-2xl font-bold text-gray-900">FitHub</span>
           </Link>
@@ -131,6 +112,7 @@ const TrainerLogin: React.FC = () => {
                   src="\images\FithHubTrainerLoginPage.png"
                   alt="Trainer illustration"
                   className="object-cover w-full h-full"
+                  loading="lazy" // Added for performance
                 />
               </div>
               <div className="w-full p-8 md:w-1/2">
@@ -163,10 +145,11 @@ const TrainerLogin: React.FC = () => {
                         onChange={handleChange}
                         className="block w-full py-2 pl-10 border border-gray-300 rounded-md focus:ring-indigo-600 focus:border-indigo-600 sm:text-sm placeholder-gray-400"
                         placeholder="Enter your email"
+                        aria-describedby={errors.email ? "email-error" : undefined} // Added for accessibility
                       />
                     </div>
                     {errors.email && (
-                      <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+                      <p id="email-error" className="text-red-500 text-sm mt-1">{errors.email}</p>
                     )}
                   </div>
 
@@ -186,9 +169,11 @@ const TrainerLogin: React.FC = () => {
                         onChange={handleChange}
                         className="block w-full py-2 pl-10 pr-10 border border-gray-300 rounded-md focus:ring-indigo-600 focus:border-indigo-600 sm:text-sm placeholder-gray-400"
                         placeholder="Enter your password"
+                        aria-describedby={errors.password ? "password-error" : undefined} // Added for accessibility
                       />
                       <button
                         type="button"
+                        aria-label={showPassword ? "Hide password" : "Show password"} // Added for accessibility
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
                       >
@@ -196,7 +181,7 @@ const TrainerLogin: React.FC = () => {
                       </button>
                     </div>
                     {errors.password && (
-                      <p className="text-red-500 text-sm mt-1">{errors.password}</p>
+                      <p id="password-error" className="text-red-500 text-sm mt-1">{errors.password}</p>
                     )}
                   </div>
 
@@ -213,7 +198,14 @@ const TrainerLogin: React.FC = () => {
                       loading ? "opacity-50 cursor-not-allowed" : ""
                     }`}
                   >
-                    {loading ? "Signing in..." : "Sign in"}
+                    {loading ? (
+                      <svg className="animate-spin h-5 w-5 mr-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"></path>
+                      </svg>
+                    ) : (
+                      "Sign in"
+                    )}
                   </button>
 
                   <div className="mt-4 text-center">
@@ -222,6 +214,12 @@ const TrainerLogin: React.FC = () => {
                     </p>
                   </div>
                 </form>
+                <p className="mt-4 text-center text-sm text-gray-600">
+                  Don’t have an account?{" "}
+                  <Link to="/trainer/signup" className="text-indigo-600 hover:text-indigo-800">
+                    Join here
+                  </Link>
+                </p>
               </div>
             </div>
           </div>

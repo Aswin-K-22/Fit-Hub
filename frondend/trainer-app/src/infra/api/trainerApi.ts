@@ -49,7 +49,7 @@ export const verifyTrainerOtp = async (data: IVerifyOtpRequestDTO): Promise<void
 };
 export const getTrainer = async () => {
   const response = await apiClient.get("/auth/trainer", { withCredentials: true });
-  return { user: response.data.trainer };
+  return { trainer : response.data.trainer };
 };
 
 export const resendTrainerOtp = async (data: IResendOtpRequestDTO): Promise<void> => {

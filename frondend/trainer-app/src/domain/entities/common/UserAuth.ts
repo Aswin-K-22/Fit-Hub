@@ -1,9 +1,11 @@
-export interface UserAuth  {
+export interface TrainerAuth  {
+
   id: string;
   name: string;
   email: string;
-  role: "user" | "admin" | "trainer";
+  role: "user" | "admin" | "trainer" ;
   profilePic? :string |null;
   verifiedByAdmin?: boolean;
   isVerified?: boolean;
+
 }

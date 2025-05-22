@@ -1,64 +1,107 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { UserAuth } from "../../../domain/entities/common/UserAuth";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// src/infra/redux/slices/authSlice.ts
+import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
+import { TrainerAuth } from "@/domain/entities/common/UserAuth";
+import { trainerLogout as logoutApi, TrainerRepository } from "@/infra/api/trainerApi";
+import { ITrainerLoginRequestDTO } from "@/domain/dtos/trainer/ITrainerLoginRequestDTO";
+import { LoginTrainerUseCase } from "@/app/useCases/trainer/loginTrainer";
 
+const trainerRepository = new TrainerRepository();
+const loginTrainerUseCase = new LoginTrainerUseCase(trainerRepository);
 
 
 interface AuthState {
-  user: UserAuth | null;
+  trainer: TrainerAuth | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
 }
 
-const loadStateFromLocalStorage = (): AuthState => {
-  const savedState = localStorage.getItem("authState");
-  return savedState
-    ? JSON.parse(savedState)
-    : { user: null, isAuthenticated: false };
+const initialState: AuthState = {
+  trainer: null,
+  isAuthenticated: false,
+  isLoading: false,
+  error: null,
 };
 
-const initialState: AuthState = loadStateFromLocalStorage();
+
+export const loginThunk = createAsyncThunk(
+  "auth/trainerLogin",
+  async (data: ITrainerLoginRequestDTO, { rejectWithValue }) => {
+    try {
+      const response = await loginTrainerUseCase.execute(data);
+      return response.trainer;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || "Login failed");
+    }
+  }
+);
+
+
+export const logoutThunk = createAsyncThunk(
+  "auth/trainerLogout",
+  async (email: string, { rejectWithValue }) => {
+    try {
+      await logoutApi(email);
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || "Logout failed");
+    }
+  }
+);
 
 const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
-    login(state, action: PayloadAction<UserAuth>) {
-      state.user = {
-        ...action.payload,
-        verifiedByAdmin: action.payload.verifiedByAdmin ?? false,
-        isVerified: action.payload.isVerified ?? false, 
-      };
-      state.isAuthenticated = true;
-      localStorage.setItem("authState", JSON.stringify(state));
+    setAuth(state, action: PayloadAction<{ trainer: TrainerAuth | null; isAuthenticated: boolean }>) {
+      state.trainer = action.payload.trainer;
+      state.isAuthenticated = action.payload.isAuthenticated;
+      state.isLoading = false;
+      state.error = null;
     },
-    signup(state, action: PayloadAction<UserAuth>) {
-      state.user = {
-        ...action.payload,
-        verifiedByAdmin: action.payload.verifiedByAdmin ?? false, 
-        isVerified: action.payload.isVerified ?? false, 
-      };
-      state.isAuthenticated = true; 
-      localStorage.setItem("authState", JSON.stringify(state));
+    setLoading(state, action: PayloadAction<boolean>) {
+      state.isLoading = action.payload;
     },
-    logout(state) {
-      state.user = null;
-      state.isAuthenticated = false;
-      localStorage.removeItem("authState");
+    setError(state, action: PayloadAction<string | null>) {
+      state.error = action.payload;
+      state.isLoading = false;
     },
-    updateVerificationStatus(
-      state,
-      action: PayloadAction<{ isVerified?: boolean; verifiedByAdmin?: boolean }>
-    ) {
-      if (state.user) {
-        state.user = {
-          ...state.user,
-          isVerified: action.payload.isVerified ?? state.user.isVerified,
-          verifiedByAdmin: action.payload.verifiedByAdmin ?? state.user.verifiedByAdmin,
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(loginThunk.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(loginThunk.fulfilled, (state, action) => {
+        state.trainer = {
+          ...action.payload,
+          isVerified: action.payload.isVerified ?? false,
         };
-        localStorage.setItem("authState", JSON.stringify(state));
-      }
-    }
+        state.isAuthenticated = true;
+        state.isLoading = false;
+        state.error = null;
+      })
+      .addCase(loginThunk.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(logoutThunk.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(logoutThunk.fulfilled, (state) => {
+        state.trainer = null;
+        state.isAuthenticated = false;
+        state.isLoading = false;
+        state.error = null;
+      })
+      .addCase(logoutThunk.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      });
   },
 });
 
-export const { login, signup, logout, updateVerificationStatus } = authSlice.actions;
+export const { setAuth, setLoading, setError } = authSlice.actions;
 export default authSlice.reducer;

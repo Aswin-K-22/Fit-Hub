@@ -1,16 +1,19 @@
 // src/presentation/features/trainer/pages/TrainerProfile.tsx
-import React, { useState, useEffect, ChangeEvent } from "react";
+import React, { useState, useEffect, ChangeEvent, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { RootState } from "../../../../infra/redux/store";
+import type { AppDispatch, RootState } from "../../../../infra/redux/store";
 import Navbar from "../components/Navbar";
 import { TrainerRepository } from "../../../../infra/api/trainerApi";
 import { GetTrainerProfileUseCase } from "../../../../app/useCases/trainer/getTrainerProfile";
 import { UpdateTrainerProfileUseCase } from "../../../../app/useCases/trainer/updateTrainerProfile";
 import { TrainerProfileData } from "../../../../domain/entities/trainer/Trainer";
-import { toast } from "react-toastify";
-import { login } from "../../../../infra/redux/slices/authSlice";
 import { IUpdateTrainerProfileRequestDTO } from "../../../../domain/dtos/trainer/IUpdateTrainerProfileRequestDTO";
+import { ITrainerProfileResponseDTO } from "../../../../domain/dtos/trainer/ITrainerProfileResponseDTO";
+import { setAuth } from "../../../../infra/redux/slices/authSlice";
+import { toast } from "react-toastify";
+import { AxiosError } from "axios";
 
+// Initialize repository and use cases
 const trainerRepository = new TrainerRepository();
 const getTrainerProfileUseCase = new GetTrainerProfileUseCase(trainerRepository);
 const updateTrainerProfileUseCase = new UpdateTrainerProfileUseCase(trainerRepository);
@@ -18,11 +21,12 @@ const updateTrainerProfileUseCase = new UpdateTrainerProfileUseCase(trainerRepos
 const backendUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 const TrainerProfile: React.FC = () => {
-  const { user } = useSelector((state: RootState) => state.auth);
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
+  const { trainer } = useSelector((state: RootState) => state.auth);
   const [profileData, setProfileData] = useState<TrainerProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [editedData, setEditedData] = useState({
     name: "",
     bio: "",
@@ -34,23 +38,26 @@ const TrainerProfile: React.FC = () => {
   });
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
+  // Fetch profile data
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const trainer = await getTrainerProfileUseCase.execute();
-        setProfileData(trainer);
+        const response: ITrainerProfileResponseDTO = await getTrainerProfileUseCase.execute();
+        const trainerProfile = response.trainer;
+        setProfileData(trainerProfile);
         setEditedData({
-          name: trainer.name || "",
-          bio: trainer.bio || "",
-          specialties: trainer.specialties || [],
+          name: trainerProfile.name || "",
+          bio: trainerProfile.bio || "",
+          specialties: trainerProfile.specialties || [],
           profilePic: null,
-          upiId: trainer.paymentDetails?.upiId || "",
-          bankAccount: trainer.paymentDetails?.bankAccount || "",
-          ifscCode: trainer.paymentDetails?.ifscCode || "",
+          upiId: trainerProfile.paymentDetails?.upiId || "",
+          bankAccount: trainerProfile.paymentDetails?.bankAccount || "",
+          ifscCode: trainerProfile.paymentDetails?.ifscCode || "",
         });
       } catch (error) {
-        console.error("Failed to fetch trainer profile:", error);
-        toast.error("Failed to load profile data");
+        const axiosError = error as AxiosError<{ message?: string }>;
+        const errorMessage = axiosError.response?.data?.message || "Failed to load profile data";
+        toast.error(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -58,15 +65,35 @@ const TrainerProfile: React.FC = () => {
     fetchProfile();
   }, []);
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+  // Clean up preview URL
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
+  const handleFileChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image size must be less than 5MB");
+        return;
+      }
+      if (!["image/jpeg", "image/png"].includes(file.type)) {
+        toast.error("Only JPEG or PNG images are allowed");
+        return;
+      }
       setEditedData((prev) => ({ ...prev, profilePic: file }));
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
       setPreviewUrl(URL.createObjectURL(file));
     }
-  };
+  }, [previewUrl]);
 
-  const handleSpecialtyChange = (e: ChangeEvent<HTMLSelectElement>) => {
+  const handleSpecialtyChange = useCallback((e: ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
     if (value && !editedData.specialties.includes(value)) {
       setEditedData((prev) => ({
@@ -74,16 +101,45 @@ const TrainerProfile: React.FC = () => {
         specialties: [...prev.specialties, value],
       }));
     }
-  };
+  }, [editedData.specialties]);
 
-  const removeSpecialty = (specialty: string) => {
+  const removeSpecialty = useCallback((specialty: string) => {
     setEditedData((prev) => ({
       ...prev,
       specialties: prev.specialties.filter((s) => s !== specialty),
     }));
-  };
+  }, []);
 
-  const handleSave = async () => {
+  const validateInputs = useCallback(() => {
+    if (!editedData.name.trim()) {
+      toast.error("Name is required");
+      return false;
+    }
+    if (editedData.specialties.length === 0) {
+      toast.error("At least one specialty is required");
+      return false;
+    }
+    if (editedData.upiId && !/^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/.test(editedData.upiId)) {
+      toast.error("Invalid UPI ID format");
+      return false;
+    }
+    if (editedData.bankAccount && !/^\d{9,18}$/.test(editedData.bankAccount)) {
+      toast.error("Bank account number must be 9-18 digits");
+      return false;
+    }
+    if (editedData.ifscCode && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(editedData.ifscCode)) {
+      toast.error("Invalid IFSC code format");
+      return false;
+    }
+    return true;
+  }, [editedData]);
+
+  const handleSave = useCallback(async () => {
+    if (!validateInputs()) {
+      return;
+    }
+
+    setIsSaving(true);
     try {
       const updateData: IUpdateTrainerProfileRequestDTO = {};
       if (editedData.name !== profileData?.name) updateData.name = editedData.name;
@@ -97,22 +153,67 @@ const TrainerProfile: React.FC = () => {
       if (editedData.ifscCode !== profileData?.paymentDetails?.ifscCode)
         updateData.ifscCode = editedData.ifscCode;
 
-      if (Object.keys(updateData).length > 0) {
-        const trainer = await updateTrainerProfileUseCase.execute(updateData);
-        setProfileData(trainer);
-        dispatch(login({ ...user!, name: trainer.name }));
-        toast.success("Profile updated successfully");
+      if (Object.keys(updateData).length === 0) {
+        setIsEditing(false);
+        setPreviewUrl(null);
+        toast.info("No changes to save");
+        return;
       }
+
+      const response: ITrainerProfileResponseDTO = await updateTrainerProfileUseCase.execute(updateData);
+      const updatedTrainer = response.trainer;
+      setProfileData(updatedTrainer);
+      if (trainer) {
+        dispatch(setAuth({
+          trainer: {
+            ...trainer,
+            name: updatedTrainer.name,
+            profilePic: updatedTrainer.profilePic || trainer.profilePic,
+          },
+          isAuthenticated: true,
+        }));
+      }
+      toast.success("Profile updated successfully");
       setIsEditing(false);
       setPreviewUrl(null);
     } catch (error) {
-      console.error("Failed to update profile:", error);
-      toast.error("Failed to update profile");
+      const axiosError = error as AxiosError<{ message?: string }>;
+      const errorMessage = axiosError.response?.data?.message || "Failed to update profile";
+      toast.error(errorMessage);
+    } finally {
+      setIsSaving(false);
     }
-  };
+  }, [dispatch, trainer, profileData, editedData, validateInputs]);
 
-  if (loading) return <div className="text-center py-10">Loading...</div>;
-  if (!profileData) return <div className="text-center py-10">Profile not found</div>;
+  const handleCancel = useCallback(() => {
+    setIsEditing(false);
+    setPreviewUrl(null);
+    setEditedData({
+      name: profileData?.name || "",
+      bio: profileData?.bio || "",
+      specialties: profileData?.specialties || [],
+      profilePic: null,
+      upiId: profileData?.paymentDetails?.upiId || "",
+      bankAccount: profileData?.paymentDetails?.bankAccount || "",
+      ifscCode: profileData?.paymentDetails?.ifscCode || "",
+    });
+  }, [profileData]);
+
+  if (loading) {
+    return (
+      <div className="text-center py-10">
+        <svg className="animate-spin h-8 w-8 mx-auto text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"></path>
+        </svg>
+        <p className="mt-2 text-gray-600">Loading profile...</p>
+      </div>
+    );
+  }
+
+  if (!profileData) {
+    return <div className="text-center py-10 text-red-600">Profile not found</div>;
+  }
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -126,13 +227,20 @@ const TrainerProfile: React.FC = () => {
                 <img
                   className="h-40 w-40 rounded-full border-4 border-white bg-white object-cover"
                   src={previewUrl || (profileData.profilePic ? `${backendUrl}${profileData.profilePic}` : "/images/user.jpg")}
-                  alt="Profile"
+                  alt="Profile picture"
                   onError={(e) => (e.currentTarget.src = "/images/user.jpg")}
+                  loading="lazy"
                 />
                 {isEditing && (
                   <label className="absolute bottom-2 right-2 rounded-full bg-indigo-600 text-white p-2 shadow-md hover:bg-indigo-700 cursor-pointer">
-                    <i className="fas fa-camera text-sm"></i>
-                    <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                    <i className="fas fa-camera text-sm" aria-hidden="true"></i>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png"
+                      className="hidden"
+                      onChange={handleFileChange}
+                      aria-label="Upload profile picture"
+                    />
                   </label>
                 )}
               </div>
@@ -142,13 +250,16 @@ const TrainerProfile: React.FC = () => {
                     type="text"
                     value={editedData.name}
                     onChange={(e) => setEditedData((prev) => ({ ...prev, name: e.target.value }))}
-                    className="text-2xl font-bold text-gray-900 mb-2 border rounded px-2 py-1"
+                    className="text-2xl font-bold text-gray-900 mb-2 border rounded px-2 py-1 w-full"
+                    placeholder="Enter your name"
+                    aria-label="Trainer name"
                   />
                 ) : (
                   <div className="flex items-center space-x-3">
                     <h2 className="text-2xl font-bold text-gray-900">{profileData.name || "N/A"}</h2>
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      <i className="fas fa-check-circle mr-1"></i>Verified
+                      <i className="fas fa-check-circle mr-1" aria-hidden="true"></i>
+                      {profileData.verifiedByAdmin ? "Verified" : "Pending Approval"}
                     </span>
                   </div>
                 )}
@@ -156,9 +267,10 @@ const TrainerProfile: React.FC = () => {
               </div>
               <button
                 onClick={() => setIsEditing(!isEditing)}
-                className="rounded-md bg-gray-100 hover:bg-gray-200 px-4 py-2 text-gray-700"
+                className="rounded-md bg-gray-100 hover:bg-gray-200 px-4 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                aria-label={isEditing ? "Cancel editing" : "Edit profile"}
               >
-                <i className="fas fa-pen mr-2"></i>{isEditing ? "Cancel" : "Edit Profile"}
+                <i className="fas fa-pen mr-2" aria-hidden="true"></i>{isEditing ? "Cancel" : "Edit Profile"}
               </button>
             </div>
           </div>
@@ -176,9 +288,10 @@ const TrainerProfile: React.FC = () => {
                     onChange={(e) => setEditedData((prev) => ({ ...prev, bio: e.target.value }))}
                     className="mt-4 block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                     placeholder="Write your bio here..."
+                    aria-label="Trainer bio"
                   />
                 ) : (
-                  <p className="mt-4 text-gray-900">{profileData.bio || "N/A"}</p>
+                  <p className="mt-4 text-gray-900">{profileData.bio || "No bio available"}</p>
                 )}
               </div>
             </div>
@@ -199,21 +312,23 @@ const TrainerProfile: React.FC = () => {
                         {isEditing && (
                           <button
                             onClick={() => removeSpecialty(specialty)}
-                            className="ml-1 text-green-600 hover:text-green-800"
+                            className="ml-1 text-green-600 hover:text-green-800 focus:outline-none"
+                            aria-label={`Remove ${specialty} specialty`}
                           >
-                            <i className="fas fa-times"></i>
+                            <i className="fas fa-times" aria-hidden="true"></i>
                           </button>
                         )}
                       </span>
                     ))}
                     {(isEditing ? editedData.specialties : profileData.specialties || []).length === 0 && (
-                      <p className="text-gray-500">N/A</p>
+                      <p className="text-gray-500">No specialties added</p>
                     )}
                   </div>
                   {isEditing && (
                     <select
                       onChange={handleSpecialtyChange}
                       className="w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                      aria-label="Add a specialty"
                     >
                       <option value="">Add specialty...</option>
                       <option value="Strength Training">Strength Training</option>
@@ -236,12 +351,12 @@ const TrainerProfile: React.FC = () => {
                     <p className="mt-1 text-gray-900">
                       {profileData.paymentDetails?.rate
                         ? `${profileData.paymentDetails.rate} ${profileData.paymentDetails.currency || "N/A"}`
-                        : "N/A"}
+                        : "Not set"}
                     </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Payment Method (Admin Set)</label>
-                    <p className="mt-1 text-gray-900">{profileData.paymentDetails?.method || "N/A"}</p>
+                    <p className="mt-1 text-gray-900">{profileData.paymentDetails?.method || "Not set"}</p>
                   </div>
                   {isEditing ? (
                     <>
@@ -253,6 +368,7 @@ const TrainerProfile: React.FC = () => {
                           onChange={(e) => setEditedData((prev) => ({ ...prev, upiId: e.target.value }))}
                           className="mt-1 block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                           placeholder="e.g., trainer@upi"
+                          aria-label="UPI ID"
                         />
                       </div>
                       <div>
@@ -263,6 +379,7 @@ const TrainerProfile: React.FC = () => {
                           onChange={(e) => setEditedData((prev) => ({ ...prev, bankAccount: e.target.value }))}
                           className="mt-1 block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                           placeholder="e.g., 1234567890"
+                          aria-label="Bank account number"
                         />
                       </div>
                       <div>
@@ -273,6 +390,7 @@ const TrainerProfile: React.FC = () => {
                           onChange={(e) => setEditedData((prev) => ({ ...prev, ifscCode: e.target.value }))}
                           className="mt-1 block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                           placeholder="e.g., SBIN0001234"
+                          aria-label="IFSC code"
                         />
                       </div>
                     </>
@@ -280,15 +398,15 @@ const TrainerProfile: React.FC = () => {
                     <>
                       <div>
                         <label className="block text-sm font-medium text-gray-700">UPI ID</label>
-                        <p className="mt-1 text-gray-900">{profileData.paymentDetails?.upiId || "N/A"}</p>
+                        <p className="mt-1 text-gray-900">{profileData.paymentDetails?.upiId || "Not set"}</p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Bank Account Number</label>
-                        <p className="mt-1 text-gray-900">{profileData.paymentDetails?.bankAccount || "N/A"}</p>
+                        <p className="mt-1 text-gray-900">{profileData.paymentDetails?.bankAccount || "Not set"}</p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700">IFSC Code</label>
-                        <p className="mt-1 text-gray-900">{profileData.paymentDetails?.ifscCode || "N/A"}</p>
+                        <p className="mt-1 text-gray-900">{profileData.paymentDetails?.ifscCode || "Not set"}</p>
                       </div>
                     </>
                   )}
@@ -305,28 +423,32 @@ const TrainerProfile: React.FC = () => {
             <div className="text-sm text-gray-500">Editing profile</div>
             <div className="flex space-x-4">
               <button
-                onClick={() => {
-                  setIsEditing(false);
-                  setPreviewUrl(null);
-                  setEditedData({
-                    name: profileData.name || "",
-                    bio: profileData.bio || "",
-                    specialties: profileData.specialties || [],
-                    profilePic: null,
-                    upiId: profileData.paymentDetails?.upiId || "",
-                    bankAccount: profileData.paymentDetails?.bankAccount || "",
-                    ifscCode: profileData.paymentDetails?.ifscCode || "",
-                  });
-                }}
-                className="rounded-md px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                onClick={handleCancel}
+                className="rounded-md px-4 py-2 border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                disabled={isSaving}
+                aria-label="Cancel editing"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
-                className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                className={`rounded-md px-4 py-2 text-sm font-medium text-white flex items-center ${
+                  isSaving ? "bg-indigo-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700"
+                } focus:outline-none focus:ring-2 focus:ring-indigo-600`}
+                disabled={isSaving}
+                aria-label="Save profile changes"
               >
-                Save Changes
+                {isSaving ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5 mr-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"></path>
+                    </svg>
+                    Saving...
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
               </button>
             </div>
           </div>

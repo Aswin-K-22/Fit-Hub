@@ -17,9 +17,10 @@ const trainerRepository = new TrainerRepository();
 const getTrainerDashboardUseCase = new GetTrainerDashboardUseCase(trainerRepository);
 
 const TrainerDashboard: React.FC = () => {
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { trainer } = useSelector((state: RootState) => state.auth);
   const [dashboardData, setDashboardData] = useState<ITrainerDashboardResponseDTO | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -35,20 +36,47 @@ const TrainerDashboard: React.FC = () => {
     fetchDashboardData();
   }, []);
 
-  if (loading) return <div className="text-center py-10">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="text-center py-10">
+        <svg
+          className="animate-spin h-8 w-8 mx-auto text-indigo-600"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"
+          ></path>
+        </svg>
+        <p className="mt-2 text-gray-600">Loading dashboard...</p>
+      </div>
+    );
+  }
+
+  if (error || !dashboardData) {
+    return (
+      <div className="text-center py-10 text-red-600">
+        {error || "Failed to load dashboard data"}
+      </div>
+    );
+  }
 
   const chartOption: EChartsOption = {
     animation: false,
     tooltip: { trigger: "axis" },
     legend: { data: ["Sessions", "Revenue"] },
     grid: { left: "3%", right: "4%", bottom: "3%", containLabel: true },
-    xAxis: { type: "category", boundaryGap: false, data: dashboardData?.performance.days || [] },
+    xAxis: { type: "category", boundaryGap: false, data: dashboardData.performance.days },
     yAxis: { type: "value" },
     series: [
       {
         name: "Sessions",
         type: "line",
-        data: dashboardData?.performance.sessions || [],
+        data: dashboardData.performance.sessions,
         smooth: true,
         lineStyle: { color: "#4F46E5" },
         itemStyle: { color: "#4F46E5" },
@@ -56,13 +84,18 @@ const TrainerDashboard: React.FC = () => {
       {
         name: "Revenue",
         type: "line",
-        data: dashboardData?.performance.revenue || [],
+        data: dashboardData.performance.revenue,
         smooth: true,
         lineStyle: { color: "#10B981" },
         itemStyle: { color: "#10B981" },
       },
     ],
   };
+
+  console.log('{trainer.profilePic}=',trainer?.profilePic);
+  console.log(`import.meta.env.VITE_API_BASE_URL-trainer.profilePic = ${import.meta.env.VITE_API_BASE_URL}${trainer?.profilePic}`);
+  
+  
 
   return (
     <div className="bg-gray-50 min-h-screen font-[Inter]">
@@ -73,21 +106,28 @@ const TrainerDashboard: React.FC = () => {
             <div className="flex items-center">
               <img
                 className="h-20 w-20 rounded-full object-cover mr-6"
-                src="https://creatie.ai/ai/api/search-image?query=A%20professional%20headshot%20of%20a%20male%20fitness%20trainer%20with%20a%20friendly%20smile,%20wearing%20athletic%20attire,%20against%20a%20neutral%20studio%20background.%20The%20image%20should%20be%20well-lit%20and%20capture%20the%20subject%27s%20confident%20and%20approachable%20demeanor.&width=200&height=200&orientation=squarish&flag=17c37b32-d20a-4129-92b3-6ac4eb738e85"
+                src={
+                  trainer?.profilePic
+                    ? `${import.meta.env.VITE_API_BASE_URL}${trainer.profilePic}`
+                    : " /images/FithHubTrainerLoginPage.png"
+                }
                 alt="Trainer"
+                onError={(e) => (e.currentTarget.src = "/images/user.jpg")}
               />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Welcome back, {user?.name || "Michael Anderson"}</h1>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Welcome back, {trainer?.name || "Trainer"}
+                </h1>
                 <p className="text-gray-500">Personal Trainer | Fitness Specialist</p>
               </div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 mb-8">
-            <StatCard icon="fa-calendar-day" title="Today's Sessions" value={dashboardData?.stats.todaysSessions || "0"} />
-            <StatCard icon="fa-users" title="Active Clients" value={dashboardData?.stats.activeClients || "0"} />
-            <StatCard icon="fa-dollar-sign" title="Monthly Earnings" value={dashboardData?.stats.monthlyEarnings || "$0"} />
-            <StatCard icon="fa-star" title="Average Rating" value={dashboardData?.stats.averageRating || "0"} />
+            <StatCard icon="fa-calendar-day" title="Today's Sessions" value={dashboardData.stats.todaysSessions} />
+            <StatCard icon="fa-users" title="Active Clients" value={dashboardData.stats.activeClients} />
+            <StatCard icon="fa-dollar-sign" title="Monthly Earnings" value={dashboardData.stats.monthlyEarnings} />
+            <StatCard icon="fa-star" title="Average Rating" value={dashboardData.stats.averageRating} />
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -100,9 +140,13 @@ const TrainerDashboard: React.FC = () => {
                   </button>
                 </div>
                 <div className="space-y-4">
-                  {dashboardData?.sessions.map((session, index) => (
-                    <SessionCard key={index} {...session} />
-                  ))}
+                  {dashboardData.sessions.length > 0 ? (
+                    dashboardData.sessions.map((session, index) => (
+                      <SessionCard key={index} {...session} />
+                    ))
+                  ) : (
+                    <p className="text-gray-500">No upcoming sessions</p>
+                  )}
                 </div>
                 <div className="flex justify-center mt-6">
                   <nav className="inline-flex rounded-md shadow-sm -space-x-px">
@@ -110,7 +154,10 @@ const TrainerDashboard: React.FC = () => {
                       <i className="fas fa-chevron-left"></i>
                     </button>
                     {[1, 2, 3].map((page) => (
-                      <button key={page} className="px-4 py-2 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50">
+                      <button
+                        key={page}
+                        className="px-4 py-2 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                      >
                         {page}
                       </button>
                     ))}
@@ -131,18 +178,26 @@ const TrainerDashboard: React.FC = () => {
               <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-6">Recent Notifications</h2>
                 <div className="space-y-4">
-                  {dashboardData?.notifications.map((notification, index) => (
-                    <NotificationCard key={index} {...notification} />
-                  ))}
+                  {dashboardData.notifications.length > 0 ? (
+                    dashboardData.notifications.map((notification, index) => (
+                      <NotificationCard key={index} {...notification} />
+                    ))
+                  ) : (
+                    <p className="text-gray-500">No notifications</p>
+                  )}
                 </div>
               </div>
 
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-6">Quick Chat</h2>
                 <div className="space-y-4">
-                  {dashboardData?.chats.map((chat, index) => (
-                    <ChatCard key={index} {...chat} />
-                  ))}
+                  {dashboardData.chats.length > 0 ? (
+                    dashboardData.chats.map((chat, index) => (
+                      <ChatCard key={index} {...chat} />
+                    ))
+                  ) : (
+                    <p className="text-gray-500">No chats available</p>
+                  )}
                 </div>
               </div>
             </div>

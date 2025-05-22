@@ -1,27 +1,22 @@
 // src/presentation/features/trainer/components/Navbar.tsx
 import React, { useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { RootState } from "../../../../infra/redux/store";
-import { logout as logoutAction } from "../../../../infra/redux/slices/authSlice";
-import { TrainerRepository } from "../../../../infra/api/trainerApi";
-import { LogoutTrainerUseCase } from "../../../../app/useCases/trainer/logoutTrainer";
+import { AppDispatch, RootState } from "../../../../infra/redux/store";
 import { toast } from "react-toastify";
-
-const trainerRepository = new TrainerRepository();
-const logoutTrainerUseCase = new LogoutTrainerUseCase(trainerRepository);
+import { logoutThunk } from "@/infra/redux/slices/authSlice";
 
 const Navbar: React.FC = () => {
-  const { user } = useSelector((state: RootState) => state.auth);
-  const dispatch = useDispatch();
+  const { trainer } = useSelector((state: RootState) => state.auth);
+  const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
-      if (user?.email) {
-        await logoutTrainerUseCase.execute(user.email);
-        dispatch(logoutAction());
+      if (trainer?.email) {
+       
+         await dispatch(logoutThunk(trainer.email));
         toast.success("Logged out successfully!");
         navigate("/trainer/login");
       }
@@ -51,7 +46,7 @@ const Navbar: React.FC = () => {
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               <a
-                href="#"
+                href="/dashboard"
                 className="border-indigo-600 text-indigo-600 border-b-2 inline-flex items-center px-1 pt-1 text-sm font-medium"
               >
                 Dashboard
@@ -88,11 +83,15 @@ const Navbar: React.FC = () => {
               >
                 <img
                   className="h-8 w-8 rounded-full object-cover"
-                  src="https://creatie.ai/ai/api/search-image?query=A%20professional%20headshot%20of%20a%20male%20fitness%20trainer%20with%20a%20friendly%20smile,%20wearing%20athletic%20attire,%20against%20a%20neutral%20studio%20background.%20The%20image%20should%20be%20well-lit%20and%20capture%20the%20subject%27s%20confident%20and%20approachable%20demeanor.&width=200&height=200&orientation=squarish&flag=d79633d0-a3c3-4ed3-a8b2-4347f3a5ee71"
+                  src={
+                    trainer?.profilePic
+                      ? `${import.meta.env.VITE_API_BASE_URL}${trainer.profilePic}`
+                      : "https://creatie.ai/ai/api/search-image?query=A%20professional%20headshot%20of%20a%20male%20fitness%20trainer%20with%20a%20friendly%20smile,%20wearing%20athletic%20attire,%20against%20a%20neutral%20studio%20background.%20The%20image%20should%20be%20well-lit%20and%20capture%20the%20subject%27s%20confident%20and%20approachable%20demeanor.&width=200&height=200&orientation=squarish&flag=17c37b32-d20a-4129-92b3-6ac4eb738e85"
+                  }
                   alt="Trainer"
                 />
                 <span className="text-sm font-medium text-gray-700">
-                  {user?.name || "Trainer"}
+                  {trainer?.name || "Trainer"}
                 </span>
                 <i className="fas fa-chevron-down text-xs"></i>
               </button>

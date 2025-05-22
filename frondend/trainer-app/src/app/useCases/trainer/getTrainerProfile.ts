@@ -1,15 +1,17 @@
 // src/app/useCases/trainer/getTrainerProfile.ts
 import { ITrainerRepository } from "../../repositories/ITrainerRepository";
-import { TrainerProfileData } from "../../../domain/entities/trainer/Trainer";
+import { ITrainerProfileResponseDTO } from "@/domain/dtos/trainer/ITrainerProfileResponseDTO";
 
 export class GetTrainerProfileUseCase {
   constructor(private trainerRepository: ITrainerRepository) {}
 
-  async execute(): Promise<TrainerProfileData> {
+  async execute(): Promise<ITrainerProfileResponseDTO> {
     const response = await this.trainerRepository.getTrainerProfile();
     return {
-      ...response.trainer,
-      verifiedByAdmin: response.trainer.verifiedByAdmin || false, 
+     trainer: {
+        ...response.trainer,
+        verifiedByAdmin: response.trainer.verifiedByAdmin || false,
+      },
     };
   }
 }
