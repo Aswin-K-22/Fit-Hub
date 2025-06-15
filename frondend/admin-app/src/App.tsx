@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 import ErrorBoundary from "@/presentation/components/ErrorBoundary";
 import { RootState } from "@/infra/redux/store";
 import { useAuthSession } from "@/infra/hooks/useAuthSession";
-import AdminLayout from "@/presentation/layouts/AdminLayout";
+import {AdminLayout} from "@/presentation/layouts/AdminLayout";
 
 // Lazy-loaded components
 const UserManagement = React.lazy(() => import("@/presentation/features/admin/pages/UserManagement"));
@@ -24,23 +24,23 @@ const ProtectedRoute: React.FC<{ element: JSX.Element; allowedRoles: string[]; i
   allowedRoles,
   isPublic = false,
 }) => {
-  const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
+  const { isAuthenticated, admin } = useSelector((state: RootState) => state.auth);
   const location = useLocation();
   const navigate = useNavigate();
-  const userRole = user?.role || "";
+  const adminRole = admin?.role || "";
 
   useEffect(() => {
     if (!isAuthenticated && !isPublic && !location.pathname.includes("login")) {
       navigate("/admin/login", { replace: true, state: { from: location } });
     }
-    if (isAuthenticated && !allowedRoles.includes(userRole)) {
+    if (isAuthenticated && !allowedRoles.includes(adminRole)) {
       navigate("/forbidden", { replace: true });
     }
-  }, [isAuthenticated, location, navigate, isPublic, userRole]);
+  }, [isAuthenticated, location, navigate, isPublic, adminRole]);
 
   if (!isAuthenticated && isPublic) return element;
   if (!isAuthenticated) return null;
-  if (!allowedRoles.includes(userRole)) return <ForbiddenPage />;
+  if (!allowedRoles.includes(adminRole)) return <ForbiddenPage />;
   return element;
 };
 
@@ -53,14 +53,14 @@ const App: React.FC = () => {
         <Suspense fallback={<div>Loading...</div>}>
           <Routes>
             <Route element={<AdminLayout />}>
-              <Route path="/dashboard" element={<ProtectedRoute element={<DashboardView />} allowedRoles={["admin"]} />} />
-              <Route path="/users" element={<ProtectedRoute element={<UserManagement />} allowedRoles={["admin"]} />} />
+              <Route path="/admin/dashboard" element={<ProtectedRoute element={<DashboardView />} allowedRoles={["admin"]} />} />
+              <Route path="/admin/users" element={<ProtectedRoute element={<UserManagement />} allowedRoles={["admin"]} />} />
               <Route path="/reports" element={<ProtectedRoute element={<Reports />} allowedRoles={["admin"]} />} />
-              <Route path="/trainers" element={<ProtectedRoute element={<Trainers />} allowedRoles={["admin"]} />} />
+              <Route path="/admin/trainers" element={<ProtectedRoute element={<Trainers />} allowedRoles={["admin"]} />} />
               <Route path="/trainers/:id" element={<ProtectedRoute element={<TrainerDetails />} allowedRoles={["admin"]} />} />
-              <Route path="/gyms" element={<ProtectedRoute element={<Gyms />} allowedRoles={["admin"]} />} />
+              <Route path="/admin/gyms" element={<ProtectedRoute element={<Gyms />} allowedRoles={["admin"]} />} />
               <Route path="/gym/add" element={<ProtectedRoute element={<AddGymForm />} allowedRoles={["admin"]} />} />
-              <Route path="/subscriptions" element={<ProtectedRoute element={<MembershipPlans />} allowedRoles={["admin"]} />} />
+              <Route path="/admin/subscriptions" element={<ProtectedRoute element={<MembershipPlans />} allowedRoles={["admin"]} />} />
               <Route path="/subscriptions/add" element={<ProtectedRoute element={<AddMembershipPlan />} allowedRoles={["admin"]} />} />
             </Route>
             <Route path="/login" element={<AdminLogin />} />

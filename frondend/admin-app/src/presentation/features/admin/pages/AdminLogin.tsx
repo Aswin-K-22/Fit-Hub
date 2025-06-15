@@ -1,83 +1,80 @@
 // src/presentation/features/admin/pages/AdminLogin.tsx
-import React, { useState, FormEvent, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { RootState, AppDispatch } from "../../../../infra/redux/store";
-import { login } from "../../../../infra/redux/slices/authSlice";
-import { AdminRepository } from "../../../../infra/api/adminApi";
-import { LoginAdminUseCase } from "../../../../app/useCases/admin/loginAdmin";
+import { loginThunk } from "../../../../infra/redux/slices/authSlice";
 import { toast } from "react-toastify";
-import { AxiosError } from "axios";
-
-const adminRepository = new AdminRepository();
-const loginAdminUseCase = new LoginAdminUseCase(adminRepository);
+import { ILoginRequestDTO } from "@/domain/dtos/user/ILoginRequestDTO";
 
 const AdminLogin: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
-  const [loginData, setLoginData] = useState({ email: "", password: "" });
-  const [errors, setErrors] = useState({ email: "", password: "" });
-  const [loading, setLoading] = useState(false);
+  const { isAuthenticated, admin, isLoading, error: authError } = useSelector((state: RootState) => state.auth);
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated && user?.role === "admin") {
+    console.log("AdminLogin: Checking auth state - isAuthenticated:", isAuthenticated, "admin:", admin);
+    if (isAuthenticated && admin?.role === "admin") {
       navigate("/admin/dashboard");
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, admin, navigate]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setLoginData((prev) => ({ ...prev, [name]: value }));
-    setErrors((prev) => ({ ...prev, [name]: "" }));
+  const handleChangeEmail = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+    setErrors((prev) => ({ ...prev, email: undefined }));
   };
 
-  const validateLogin = () => {
-    let valid = true;
-    const newErrors = { email: "", password: "" };
+  const handleChangePassword = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+    setErrors((prev) => ({ ...prev, password: undefined }));
+  };
 
-    if (!loginData.email) {
+  const validateForm = (): boolean => {
+    console.log("AdminLogin: Validating form with email:", email, "password length:", password.length);
+    const newErrors: { email?: string; password?: string } = {};
+    if (!email) {
       newErrors.email = "Email is required";
-      valid = false;
-    } else if (!/^[a-zA-Z0-9._%+-]+@gmail\.com$/.test(loginData.email)) {
-      newErrors.email = "Email is invalid";
-      valid = false;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      newErrors.email = "Invalid email format";
     }
-    if (!loginData.password || loginData.password.length < 6) {
-      newErrors.password = "Valid Password is required";
-      valid = false;
+    if (!password) {
+      newErrors.password = "Password is required";
+    } else if (password.length < 6) {
+      newErrors.password = "Password must be at least 6 characters";
+    } else if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+      newErrors.password = "Password must contain letters and numbers";
     }
-
     setErrors(newErrors);
-    return valid;
+    console.log("AdminLogin: Validation errors:", newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateLogin()) {
-      toast.error("Please fix form errors", { position: "top-right" });
+    console.log("AdminLogin: Form submitted with email:", email);
+    if (!validateForm()) {
       return;
     }
-
-    setLoading(true);
+    const loginData: ILoginRequestDTO = { email, password };
     try {
-      const response = await loginAdminUseCase.execute(loginData);
-      dispatch(login(response.user));
-      toast.success("Login successful!", { position: "top-right" });
-      navigate("/admin/dashboard");
-    } catch (error) {
-      const axiosError = error as AxiosError<{ message?: string }>;
-      toast.error(
-        axiosError.response?.data?.message || "Login failed—check credentials",
-        { position: "top-right" }
-      );
-      console.error("Login failed:", axiosError);
-    } finally {
-      setLoading(false);
+      console.log("AdminLogin: Dispatching loginThunk with:", loginData);
+      const result = await dispatch(loginThunk(loginData)).unwrap();
+      console.log("AdminLogin: loginThunk result:", result);
+      if (result) {
+        toast.success("Login successful!");
+        navigate("/admin/dashboard");
+      }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (err) {
+      console.error("AdminLogin: Login error:", authError);
+      toast.error(authError || "Login failed—please try again!");
     }
   };
-
+  
   const togglePasswordVisibility = () => {
     setShowPassword((prev) => !prev);
   };
@@ -111,15 +108,16 @@ const AdminLogin: React.FC = () => {
                   name="email"
                   type="email"
                   autoComplete="email"
-                  value={loginData.email}
-                  onChange={handleChange}
-                  className="block w-full py-2 pl-10 border border-gray-300 rounded-md focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm placeholder-gray-400"
+                  value={email}
+                  onChange={handleChangeEmail}
+                  disabled={isLoading}
+                  className={`block w-full py-2 pl-10 border rounded-md sm:text-sm placeholder-gray-400 ${
+                    errors.email ? "border-red-500" : "border-gray-300"
+                  } focus:border-indigo-600 focus:ring-indigo-600 ${isLoading ? "opacity-50" : ""}`}
                   placeholder="Enter your email"
                 />
               </div>
-              {errors.email && (
-                <p className="text-red-500 text-sm mt-1">{errors.email}</p>
-              )}
+              {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
             </div>
 
             <div>
@@ -135,25 +133,29 @@ const AdminLogin: React.FC = () => {
                   name="password"
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
-                  value={loginData.password}
-                  onChange={handleChange}
-                  className="block w-full py-2 pl-10 pr-10 border border-gray-300 rounded-md focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm placeholder-gray-400"
+                  value={password}
+                  onChange={handleChangePassword}
+                  disabled={isLoading}
+                  className={`block w-full py-2 pl-10 pr-10 border rounded-md sm:text-sm placeholder-gray-400 ${
+                    errors.password ? "border-red-500" : "border-gray-300"
+                  } focus:border-indigo-600 focus:ring-indigo-600 ${isLoading ? "opacity-50" : ""}`}
                   placeholder="Enter your password"
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
                   <button
                     type="button"
                     onClick={togglePasswordVisibility}
+                    disabled={isLoading}
                     className="text-gray-400 hover:text-gray-500 focus:outline-none"
                   >
                     <i className={`fas ${showPassword ? "fa-eye-slash" : "fa-eye"}`}></i>
                   </button>
                 </div>
               </div>
-              {errors.password && (
-                <p className="text-red-500 text-sm mt-1">{errors.password}</p>
-              )}
+              {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
             </div>
+
+            {authError && <p className="text-red-500 text-sm mt-1">{authError}</p>}
 
             <div className="flex items-center justify-end">
               <div className="text-sm">
@@ -166,12 +168,12 @@ const AdminLogin: React.FC = () => {
             <div>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={isLoading}
                 className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600 ${
-                  loading ? "opacity-50 cursor-not-allowed" : ""
+                  isLoading ? "opacity-50 cursor-not-allowed" : ""
                 }`}
               >
-                {loading ? "Signing in..." : "Sign in"}
+                {isLoading ? "Signing in..." : "Sign in"}
               </button>
             </div>
           </form>

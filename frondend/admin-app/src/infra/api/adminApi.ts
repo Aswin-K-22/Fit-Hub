@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // src/infra/api/adminApi.ts
 import axios from "axios";
-import { IAddTrainerDataDTO } from "../../domain/dtos/trainer/IAddTrainerDataDTO";
+//import { IAddTrainerDataDTO } from "../../domain/dtos/trainer/IAddTrainerDataDTO";
 import { GetUsersResponse, IAdminRepository, IGetPendingTrainersResponseDTO } from "../../app/repositories/IAdminRepository";
 import { IAdminLoginRequestDTO } from "../../domain/dtos/admin/IAdminLoginRequestDTO";
 import { IAdminLoginResponseDTO } from "../../domain/dtos/admin/IAdminLoginResponseDTO";
 import { IAddMembershipPlanRequestDTO } from "../../domain/dtos/admin/IAddMembershipPlanRequestDTO.ts";
-import User from "../../domain/entities/user/User";
+import User from "../../domain/entities/admin/User";
 import { IGetGymsResponseDTO } from "../../domain/dtos/admin/IGetGymsResponseDTO.ts";
 import { IGetMembershipPlansResponseDTO } from "../../domain/dtos/admin/IGetMembershipPlansResponseDTO.ts";
 import { IGetTrainersResponseDTO } from "../../domain/dtos/admin/IGetTrainersResponseDTO.ts";
@@ -18,8 +18,24 @@ const apiClient = axios.create({
 });
 
 export const adminLogin = async (email: string, password: string) => {
-  const response = await apiClient.post("/auth/admin/login", { email, password });
-  return response.data;
+  try {
+    console.log("adminApi: Sending login request with email:", email, "payload:", { email, password });
+    const response = await apiClient.post("/auth/admin/login", { email, password });
+    console.log("adminApi: Login response:", {
+      status: response.status,
+      data: response.data,
+      admin: response.data.admin,
+    });
+    return { admin: response.data.admin };
+  } catch (error: any) {
+    console.error("adminApi: Login error:", {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data,
+      errorMessage: error.response?.data?.message || "Unknown error",
+    });
+    throw error; // Re-throw to let loginThunk handle rejectWithValue
+  }
 };
 
 export const adminLogout = async (email: string): Promise<void> => {
@@ -28,7 +44,7 @@ export const adminLogout = async (email: string): Promise<void> => {
 
 export const getAdmin = async () => {
   const response = await apiClient.get("/auth/admin");
-  return { user: response.data.admin };
+  return { admin: response.data.admin };
 };
 
 export const getUsers = async (page: number = 1, limit: number = 3): Promise<GetUsersResponse> => {
@@ -47,10 +63,10 @@ export const getUsers = async (page: number = 1, limit: number = 3): Promise<Get
   };
 };
 
-export const addTrainer = async (data: IAddTrainerDataDTO): Promise<any> => {
-  const response = await apiClient.post("/admin/addTrainer", data);
-  return response.data;
-};
+// export const addTrainer = async (data: IAddTrainerDataDTO): Promise<any> => {
+//   const response = await apiClient.post("/admin/addTrainer", data);
+//   return response.data;
+// };
 
 export const addGym = async (data: FormData): Promise<any> => {
   const response = await apiClient.post("/admin/addGym", data, {
@@ -137,9 +153,9 @@ export class AdminRepository implements IAdminRepository {
     return toggleUserVerification(userId);
   }
 
-  async addTrainer(data: IAddTrainerDataDTO): Promise<any> {
-    return addTrainer(data);
-  }
+  // async addTrainer(data: IAddTrainerDataDTO): Promise<any> {
+  //   return addTrainer(data);
+  // }
 
 
 

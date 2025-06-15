@@ -1,6 +1,6 @@
 // src/domain/dtos/IAdminLoginResponseDTO.ts
-import { User } from "../../entities/user/User";
+import { Admin } from "../../entities/admin/Admin";
 
 export interface IAdminLoginResponseDTO {
-  user: User;
+  admin: Admin;
 }

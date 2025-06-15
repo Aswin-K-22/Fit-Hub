@@ -3,13 +3,13 @@
 
 import { IAdminLoginRequestDTO } from "../../domain/dtos/admin/IAdminLoginRequestDTO";
 import { IAdminLoginResponseDTO } from "../../domain/dtos/admin/IAdminLoginResponseDTO";
-import { IAddTrainerDataDTO } from "../../domain/dtos/trainer/IAddTrainerDataDTO";
+//import { IAddTrainerDataDTO } from "../../domain/dtos/trainer/IAddTrainerDataDTO";
 import { IAddMembershipPlanRequestDTO } from "../../domain/dtos/admin/IAddMembershipPlanRequestDTO.ts";
-import User from "../../domain/entities/user/User";
+import User from "../../domain/entities/admin/User";
 import { IGetGymsResponseDTO } from "../../domain/dtos/admin/IGetGymsResponseDTO.ts";
 import { IGetMembershipPlansResponseDTO } from "../../domain/dtos/admin/IGetMembershipPlansResponseDTO.ts";
 import { IGetTrainersResponseDTO } from "../../domain/dtos/admin/IGetTrainersResponseDTO.ts";
-import { PendingTrainerSummary } from "../../domain/entities/trainer/Trainer.ts";
+import { PendingTrainerSummary } from "../../domain/entities/admin/Trainer.ts";
 
 
 
@@ -29,7 +29,7 @@ export interface IAdminRepository {
   logout(email: string): Promise<void>;
   getUsers(page: number, limit: number): Promise<GetUsersResponse>;
   toggleUserVerification(userId: string): Promise<User>;
-  addTrainer(data: IAddTrainerDataDTO): Promise<any>;
+  //addTrainer(data: IAddTrainerDataDTO): Promise<any>;
   addGym(data: FormData): Promise<any>;
   getAvailableTrainers(): Promise<{ id: string; name: string; active: boolean }[]>;
   getGyms(page: number, limit: number): Promise<IGetGymsResponseDTO>;

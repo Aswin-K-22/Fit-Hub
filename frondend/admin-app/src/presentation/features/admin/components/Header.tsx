@@ -1,31 +1,34 @@
 // src/presentation/features/admin/components/Header.tsx
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "../../../../infra/redux/store";
-import { logout as logoutAction } from "../../../../infra/redux/slices/authSlice";
+import { AppDispatch, RootState } from "../../../../infra/redux/store";
+import { logoutThunk as logoutAction } from "../../../../infra/redux/slices/authSlice";
 import { useNavigate } from "react-router-dom";
 import { AdminRepository } from "../../../../infra/api/adminApi";
 import { LogoutAdminUseCase } from "../../../../app/useCases/admin/logoutAdmin";
 import { toast } from "react-toastify";
+import { AdminAuth } from "@/domain/entities/common/UserAuth";
 
 const adminRepository = new AdminRepository();
 const logoutAdminUseCase = new LogoutAdminUseCase(adminRepository);
 
 interface HeaderProps {
+  admin :AdminAuth | null;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
+  handleLogout: () => Promise<void>;
 }
 
 const Header: React.FC<HeaderProps> = ({ isOpen, setIsOpen }) => {
-  const { user } = useSelector((state: RootState) => state.auth);
-  const dispatch = useDispatch();
+  const { admin } = useSelector((state: RootState) => state.auth);
+ const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
     try {
-      if (user?.email) {
-        await logoutAdminUseCase.execute(user.email);
-        dispatch(logoutAction());
+      if (admin?.email) {
+        await logoutAdminUseCase.execute(admin.email);
+         dispatch(logoutAction(admin.email));
         toast.success("Logged out successfully!");
         navigate("/admin/login");
       }
@@ -62,7 +65,7 @@ const Header: React.FC<HeaderProps> = ({ isOpen, setIsOpen }) => {
               alt="Admin"
               className="w-8 h-8 rounded-full"
             />
-            <span className="text-sm font-medium">{user?.name || "Admin"}</span>
+            <span className="text-sm font-medium">{admin?.name || "Admin"}</span>
             <i className="fas fa-chevron-down text-xs"></i>
           </button>
           {isOpen && (
