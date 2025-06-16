@@ -2,15 +2,11 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "../../../../infra/redux/store";
-import { logoutThunk as logoutAction } from "../../../../infra/redux/slices/authSlice";
+import {  logoutThunk, setAuth } from "../../../../infra/redux/slices/authSlice";
 import { useNavigate } from "react-router-dom";
-import { AdminRepository } from "../../../../infra/api/adminApi";
-import { LogoutAdminUseCase } from "../../../../app/useCases/admin/logoutAdmin";
 import { toast } from "react-toastify";
 import { AdminAuth } from "@/domain/entities/common/UserAuth";
 
-const adminRepository = new AdminRepository();
-const logoutAdminUseCase = new LogoutAdminUseCase(adminRepository);
 
 interface HeaderProps {
   admin :AdminAuth | null;
@@ -24,19 +20,28 @@ const Header: React.FC<HeaderProps> = ({ isOpen, setIsOpen }) => {
  const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 
-  const handleLogout = async () => {
+ const handleLogout = async () => {
     try {
       if (admin?.email) {
-        await logoutAdminUseCase.execute(admin.email);
-         dispatch(logoutAction(admin.email));
+        await dispatch(logoutThunk(admin.email)).unwrap();
         toast.success("Logged out successfully!");
-        navigate("/admin/login");
+        navigate("/admin/login", { replace: true });
+      } else {
+        throw new Error("No admin email found");
       }
-    } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
       console.error("Logout failed:", error);
-      toast.error("Logout failed—try again!");
+      if (error.response?.status === 401) {
+        dispatch(setAuth({ admin: null, isAuthenticated: false }));
+        toast.error("Session already expired. Please log in again.");
+        navigate("/admin/login", { replace: true });
+      } else {
+        toast.error("Logout failed—please try again!");
+      }
+    } finally {
+      setIsOpen(false);
     }
-    setIsOpen(false);
   };
 
   return (
@@ -61,7 +66,7 @@ const Header: React.FC<HeaderProps> = ({ isOpen, setIsOpen }) => {
             className="flex items-center space-x-2 text-gray-700 hover:text-gray-900"
           >
             <img
-              src="https://creatie.ai/ai/api/search-image?query=A%20professional%20headshot%20of%20a%20business%20person%20with%20a%20friendly%20smile,%20wearing%20formal%20attire,%20against%20a%20neutral%20background&width=40&height=40&orientation=squarish&flag=8e4607d4-63ad-4bd7-a7c8-3d99b97bdfba"
+              src="/images/admin.webp"
               alt="Admin"
               className="w-8 h-8 rounded-full"
             />

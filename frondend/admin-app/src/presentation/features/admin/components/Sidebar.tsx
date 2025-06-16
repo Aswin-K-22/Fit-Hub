@@ -19,7 +19,7 @@ const Sidebar: React.FC = () => {
   return (
     <aside className="w-64 bg-white border-r border-gray-200 fixed h-full">
       <div className="h-16 flex items-center justify-center border-b border-gray-200">
-        <img src="https://ai-public.creatie.ai/gen_page/logo_placeholder.png" alt="FitHub Logo" className="h-8" />
+        <img src="/images/admin.webp"  alt="FitHub Logo" className="w-12 h-12 rounded-full object-cover" />
       </div>
       <nav className="mt-6">
         <div className="px-3 space-y-1">

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // src/infra/api/adminApi.ts
-import axios from "axios";
+import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios";
 //import { IAddTrainerDataDTO } from "../../domain/dtos/trainer/IAddTrainerDataDTO";
 import { GetUsersResponse, IAdminRepository, IGetPendingTrainersResponseDTO } from "../../app/repositories/IAdminRepository";
 import { IAdminLoginRequestDTO } from "../../domain/dtos/admin/IAdminLoginRequestDTO";
@@ -16,6 +16,77 @@ const apiClient = axios.create({
   withCredentials: true,
   headers: { "Content-Type": "application/json" },
 });
+
+const refreshClient = axios.create({
+  baseURL: "/api",
+  withCredentials: true,
+  headers: { "Content-Type": "application/json" },
+});
+
+interface QueueItem {
+  resolve: (value?: unknown) => void;
+  reject: (reason?: any) => void;
+}
+
+let isRefreshing = false;
+let failedQueue: QueueItem[] = [];
+
+const processQueue = (error: AxiosError | null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve();
+    }
+  });
+  failedQueue = [];
+};
+
+apiClient.interceptors.response.use(
+  (response: AxiosResponse) => response,
+  async (error: AxiosError) => {
+    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean } | undefined;
+
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes("/refresh-token")
+    ) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(() => apiClient(originalRequest))
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const refreshResponse = await refreshClient.post("/auth/admin/refresh-token");
+        console.log("Admin token refreshed successfully:", refreshResponse.data);
+        localStorage.setItem("adminData", JSON.stringify(refreshResponse.data.admin));
+        isRefreshing = false;
+        processQueue(null);
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        console.error("Admin token refresh failed:", refreshError);
+        isRefreshing = false;
+        processQueue(refreshError as AxiosError);
+        document.cookie = "accessToken=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
+        document.cookie = "refreshToken=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+export { apiClient, refreshClient };
+
 
 export const adminLogin = async (email: string, password: string) => {
   try {
@@ -47,21 +118,37 @@ export const getAdmin = async () => {
   return { admin: response.data.admin };
 };
 
-export const getUsers = async (page: number = 1, limit: number = 3): Promise<GetUsersResponse> => {
-  const response = await apiClient.get("/admin/users", { params: { page, limit } });
+export const getUsers = async (
+  page: number = 1,
+  limit: number = 3,
+  search?: string,
+  membership?: string,
+  isVerified?: string
+): Promise<GetUsersResponse> => {
+  const response = await apiClient.get("/admin/users", {
+    params: {
+      page,
+      limit,
+      search,
+      membership,
+      isVerified,
+    },
+  });
+  console.log("API response for params:", { search, membership, isVerified }, "Users:", response.data.users);
   return {
     users: response.data.users.map((user: any) => ({
       id: user.id,
       name: user.name || "N/A",
       email: user.email,
-      membership: user.membershipId ? "Premium" : "N/A", // Adjust based on backend
-      status: user.isVerified ? "Active" : "Suspended",
+      membership: user.membership || "None",
+      status: user.status || "None",
       profilePic: user.profilePic || null,
       isVerified: user.isVerified,
     })),
     totalPages: response.data.totalPages,
   };
 };
+
 
 // export const addTrainer = async (data: IAddTrainerDataDTO): Promise<any> => {
 //   const response = await apiClient.post("/admin/addTrainer", data);
@@ -145,8 +232,14 @@ export class AdminRepository implements IAdminRepository {
     return adminLogout(email);
   }
 
-  async getUsers(page: number, limit: number): Promise<GetUsersResponse> {
-    return getUsers(page, limit);
+ async getUsers(
+    page: number,
+    limit: number,
+    search?: string,
+    membership?: string,
+    isVerified?: string
+  ): Promise<GetUsersResponse> {
+    return getUsers(page, limit, search, membership, isVerified);
   }
 
   async toggleUserVerification(userId: string): Promise<User> {

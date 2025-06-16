@@ -12,15 +12,15 @@ export const useAuthSession = () => {
 
   useEffect(() => {
     const checkAuth = async () => {
+      console.log("checkAuth: Starting session check");
       dispatch(setLoading(true));
       try {
         const response = await getAdmin();
-        if(response.admin.role == "user"){
+        if (response.admin && response.admin.role === "admin") {
           dispatch(setAuth({ admin: response.admin, isAuthenticated: true }));
-        }else{
-        dispatch(setAuth({ admin: null, isAuthenticated: false }));
-}
-    
+        } else {
+          dispatch(setAuth({ admin: null, isAuthenticated: false }));
+        }
       } catch (error: any) {
         dispatch(setError(error.response?.data?.message || "Failed to verify session"));
         dispatch(setAuth({ admin: null, isAuthenticated: false }));
@@ -29,10 +29,10 @@ export const useAuthSession = () => {
       }
     };
 
-    if (!isAuthenticated && !isLoading) {
+    if (!isLoading && !isAuthenticated) {
       checkAuth();
     }
-  }, [dispatch]);
+  }, [dispatch ,isAuthenticated]); 
 
   return { isAuthenticated, isLoading };
 };

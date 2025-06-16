@@ -39,8 +39,8 @@ export const logoutThunk = createAsyncThunk(
   async (email: string, { rejectWithValue }) => {
     try {
       console.log("logoutThunk: Sending logout request for email:", email);
-      await logoutApi(email);
-      console.log("logoutThunk: Logout successful");
+      await logoutApi(email); // Call the server to invalidate session
+      return true; // Return success indicator
     } catch (error: any) {
       console.error("logoutThunk: Logout error:", error.response?.data || error.message);
       return rejectWithValue(error.response?.data?.message || "Logout failed");

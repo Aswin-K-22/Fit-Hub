@@ -27,13 +27,12 @@ export interface IGetPendingTrainersResponseDTO {
 export interface IAdminRepository {
   login(data: IAdminLoginRequestDTO): Promise<IAdminLoginResponseDTO>;
   logout(email: string): Promise<void>;
-  getUsers(page: number, limit: number): Promise<GetUsersResponse>;
+  getUsers(page: number, limit: number, search?: string, status?: string, membership?: string, isVerified?: string): Promise<GetUsersResponse>;
   toggleUserVerification(userId: string): Promise<User>;
-  //addTrainer(data: IAddTrainerDataDTO): Promise<any>;
   addGym(data: FormData): Promise<any>;
   getAvailableTrainers(): Promise<{ id: string; name: string; active: boolean }[]>;
   getGyms(page: number, limit: number): Promise<IGetGymsResponseDTO>;
-  getTrainers(page: number, limit: number,status?: string): Promise<IGetTrainersResponseDTO>;
+  getTrainers(page: number, limit: number, status?: string): Promise<IGetTrainersResponseDTO>;
   addMembershipPlan(data: IAddMembershipPlanRequestDTO): Promise<any>;
   getMembershipPlans(page: number, limit: number): Promise<IGetMembershipPlansResponseDTO>;
   getPendingTrainers(page: number, limit: number): Promise<IGetPendingTrainersResponseDTO>;

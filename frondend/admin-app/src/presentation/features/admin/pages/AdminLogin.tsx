@@ -83,8 +83,8 @@ const AdminLogin: React.FC = () => {
     <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-gradient-to-br from-blue-50 to-white font-[Inter]">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <img
-          className="mx-auto h-10 w-auto"
-          src="https://ai-public.creatie.ai/gen_page/logo_placeholder.png"
+          className="mx-auto w-24 h-24 rounded-full object-cover"
+          src="/images/admin.webp"
           alt="FitHub"
         />
         <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">

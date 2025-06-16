@@ -1,9 +1,10 @@
+
 // src/presentation/features/admin/pages/UserManagement.tsx
 import React, { useState, useEffect } from "react";
 import UserTable from "../components/UserTable";
 import { AdminRepository } from "../../../../infra/api/adminApi";
 import { GetUsersUseCase } from "../../../../app/useCases/admin/getUsers";
-import { User } from "../../../../domain/entities/user/User";
+import { User } from "../../../../domain/entities/admin/User";
 
 const adminRepository = new AdminRepository();
 const getUsersUseCase = new GetUsersUseCase(adminRepository);
@@ -14,12 +15,22 @@ const UserManagement: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [search, setSearch] = useState("");
+  const [membershipFilter, setMembershipFilter] = useState("");
+  const [isVerifiedFilter, setIsVerifiedFilter] = useState("");
   const limit = 3;
 
   useEffect(() => {
     const loadUsers = async () => {
       try {
-        const { users: fetchedUsers, totalPages: fetchedTotalPages } = await getUsersUseCase.execute(page, limit);
+        setLoading(true);
+        const { users: fetchedUsers, totalPages: fetchedTotalPages } = await getUsersUseCase.execute(
+          page,
+          limit,
+          search || undefined,
+          membershipFilter || undefined,
+          isVerifiedFilter || undefined
+        );
         setUsers(fetchedUsers);
         setTotalPages(fetchedTotalPages);
       } catch (err) {
@@ -30,20 +41,28 @@ const UserManagement: React.FC = () => {
       }
     };
     loadUsers();
-  }, [page]);
+  }, [page, search, membershipFilter, isVerifiedFilter]);
 
   const handleUserUpdate = (updatedUser: User) => {
-    setUsers((prevUsers) => {
-      const newUsers = prevUsers.map((user) =>
-        user.id === updatedUser.id ? { ...updatedUser } : user
-      );
-      console.log("Updated users state:", newUsers); 
-      return newUsers;
-    });
+    setUsers((prevUsers) =>
+      prevUsers.map((user) => (user.id === updatedUser.id ? { ...updatedUser } : user))
+    );
   };
 
-  if (loading) return <main className="p-6">Loading...</main>;
-  if (error) return <main className="p-6">{error}</main>;
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value);
+    setPage(1);
+  };
+
+  const handleMembershipFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setMembershipFilter(e.target.value);
+    setPage(1);
+  };
+
+  const handleIsVerifiedFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setIsVerifiedFilter(e.target.value);
+    setPage(1);
+  };
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) setPage(newPage);
@@ -118,8 +137,46 @@ const UserManagement: React.FC = () => {
         <h1 className="text-2xl font-semibold text-gray-900">User Management</h1>
         <p className="mt-2 text-sm text-gray-700">Manage and monitor all registered users in the FitHub platform</p>
       </div>
-      <UserTable users={users} onUserUpdate={handleUserUpdate} />
-      {renderPagination()}
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:space-x-4">
+        <input
+          type="text"
+          placeholder="Search by name"
+          value={search}
+          onChange={handleSearchChange}
+          className="w-full sm:w-64 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+        <select
+          value={membershipFilter}
+          onChange={handleMembershipFilterChange}
+          className="w-full sm:w-48 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value="">All Memberships</option>
+          <option value="Basic">Basic</option>
+          <option value="Premium">Premium</option>
+          <option value="Elite">Elite</option>
+          <option value="Diamond">Diamond</option>
+          <option value="None">None</option>
+        </select>
+        <select
+          value={isVerifiedFilter}
+          onChange={handleIsVerifiedFilterChange}
+          className="w-full sm:w-48 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value="">All Verification</option>
+          <option value="true">Verified</option>
+          <option value="false">Unverified</option>
+        </select>
+      </div>
+      {loading ? (
+        <div>Loading...</div>
+      ) : error ? (
+        <div>{error}</div>
+      ) : (
+        <>
+          <UserTable users={users} onUserUpdate={handleUserUpdate} />
+          {renderPagination()}
+        </>
+      )}
     </main>
   );
 };

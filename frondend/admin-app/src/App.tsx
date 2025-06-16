@@ -1,5 +1,5 @@
 import React, { JSX, useEffect, Suspense } from "react";
-import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
+import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import ErrorBoundary from "@/presentation/components/ErrorBoundary";
 import { RootState } from "@/infra/redux/store";
@@ -24,23 +24,34 @@ const ProtectedRoute: React.FC<{ element: JSX.Element; allowedRoles: string[]; i
   allowedRoles,
   isPublic = false,
 }) => {
-  const { isAuthenticated, admin } = useSelector((state: RootState) => state.auth);
+  const { isAuthenticated, isLoading, admin } = useSelector((state: RootState) => state.auth);
   const location = useLocation();
   const navigate = useNavigate();
   const adminRole = admin?.role || "";
 
   useEffect(() => {
-    if (!isAuthenticated && !isPublic && !location.pathname.includes("login")) {
+    // Only redirect if session check is complete and user is not authenticated
+    if (!isLoading && !isAuthenticated && !isPublic && !location.pathname.includes("login")) {
       navigate("/admin/login", { replace: true, state: { from: location } });
     }
-    if (isAuthenticated && !allowedRoles.includes(adminRole)) {
+    // Redirect to forbidden if role is not allowed
+    if (!isLoading && isAuthenticated && !allowedRoles.includes(adminRole)) {
       navigate("/forbidden", { replace: true });
     }
-  }, [isAuthenticated, location, navigate, isPublic, adminRole]);
+  }, [isAuthenticated, isLoading, location, navigate, isPublic, adminRole]);
 
+  // Show loading state while session is being validated
+  if (isLoading) return <div>Checking session...</div>;
+
+  // Allow public routes without authentication
   if (!isAuthenticated && isPublic) return element;
+
+  // Redirect to login if not authenticated (handled by useEffect)
   if (!isAuthenticated) return null;
+
+  // Show forbidden page if role is not allowed
   if (!allowedRoles.includes(adminRole)) return <ForbiddenPage />;
+
   return element;
 };
 
@@ -51,22 +62,31 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-gray-100">
       <ErrorBoundary>
         <Suspense fallback={<div>Loading...</div>}>
-          <Routes>
-            <Route element={<AdminLayout />}>
-              <Route path="/admin/dashboard" element={<ProtectedRoute element={<DashboardView />} allowedRoles={["admin"]} />} />
-              <Route path="/admin/users" element={<ProtectedRoute element={<UserManagement />} allowedRoles={["admin"]} />} />
-              <Route path="/reports" element={<ProtectedRoute element={<Reports />} allowedRoles={["admin"]} />} />
-              <Route path="/admin/trainers" element={<ProtectedRoute element={<Trainers />} allowedRoles={["admin"]} />} />
-              <Route path="/trainers/:id" element={<ProtectedRoute element={<TrainerDetails />} allowedRoles={["admin"]} />} />
-              <Route path="/admin/gyms" element={<ProtectedRoute element={<Gyms />} allowedRoles={["admin"]} />} />
-              <Route path="/gym/add" element={<ProtectedRoute element={<AddGymForm />} allowedRoles={["admin"]} />} />
-              <Route path="/admin/subscriptions" element={<ProtectedRoute element={<MembershipPlans />} allowedRoles={["admin"]} />} />
-              <Route path="/subscriptions/add" element={<ProtectedRoute element={<AddMembershipPlan />} allowedRoles={["admin"]} />} />
-            </Route>
-            <Route path="/login" element={<AdminLogin />} />
-            <Route path="/forbidden" element={<ForbiddenPage />} />
-            <Route path="*" element={<AdminLogin />} />
-          </Routes>
+        <Routes>
+  <Route element={<AdminLayout />}>
+    <Route path="/admin/dashboard" element={<ProtectedRoute element={<DashboardView />} allowedRoles={["admin"]} />} />
+    <Route path="/admin/users" element={<ProtectedRoute element={<UserManagement />} allowedRoles={["admin"]} />} />
+    <Route path="/reports" element={<ProtectedRoute element={<Reports />} allowedRoles={["admin"]} />} />
+    <Route path="/admin/trainers" element={<ProtectedRoute element={<Trainers />} allowedRoles={["admin"]} />} />
+    <Route path="/trainers/:id" element={<ProtectedRoute element={<TrainerDetails />} allowedRoles={["admin"]} />} />
+    <Route path="/admin/gyms" element={<ProtectedRoute element={<Gyms />} allowedRoles={["admin"]} />} />
+    <Route path="/gym/add" element={<ProtectedRoute element={<AddGymForm />} allowedRoles={["admin"]} />} />
+    <Route path="/admin/subscriptions" element={<ProtectedRoute element={<MembershipPlans />} allowedRoles={["admin"]} />} />
+    <Route path="/subscriptions/add" element={<ProtectedRoute element={<AddMembershipPlan />} allowedRoles={["admin"]} />} />
+  </Route>
+  <Route
+    path="/admin/login"
+    element={
+      <ProtectedRoute
+        element={<AdminLogin />}
+        allowedRoles={["admin"]}
+        isPublic={true}
+      />
+    }
+  />
+  <Route path="/forbidden" element={<ForbiddenPage />} />
+  <Route path="*" element={<Navigate to="/admin/login" replace />} />
+</Routes>
         </Suspense>
       </ErrorBoundary>
     </div>

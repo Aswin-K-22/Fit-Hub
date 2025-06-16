@@ -1,6 +1,7 @@
+
 // src/presentation/features/admin/components/UserTable.tsx
 import React from "react";
-import { User } from "../../../../domain/entities/user/User";
+import { User } from "../../../../domain/entities/admin/User";
 import { AdminRepository } from "../../../../infra/api/adminApi";
 import { ToggleUserVerificationUseCase } from "../../../../app/useCases/admin/toggleUserVerification";
 import { toast } from "react-toastify";
@@ -15,34 +16,36 @@ interface UserTableProps {
 
 const UserTable: React.FC<UserTableProps> = ({ users, onUserUpdate }) => {
   const getMembershipStyle = (membership: string | undefined) => {
-    const value = membership || "N/A";
+    const value = membership || "None";
     switch (value) {
-      case "Premium": return "bg-blue-100 text-blue-800";
-      case "Elite": return "bg-purple-100 text-purple-800";
-      case "Basic": return "bg-gray-100 text-gray-800";
-      default: return "bg-gray-100 text-gray-800";
+      case "Premium":
+        return "bg-blue-100 text-blue-800";
+      case "Elite":
+        return "bg-purple-100 text-purple-800";
+      case "Basic":
+        return "bg-gray-100 text-gray-800";
+      case "Diamond":
+        return "bg-yellow-100 text-yellow-800";
+      case "None":
+        return "bg-gray-100 text-gray-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
-  const getStatusStyle = (status: string | undefined) => {
-    const value = status || "free-plan";
-    switch (value) {
-      case "Active": return "bg-green-100 text-green-800";
-      case "Suspended": return "bg-red-100 text-red-800";
-      case "Expiring Soon": return "bg-yellow-100 text-yellow-800";
-      default: return "bg-gray-100 text-gray-800";
-    }
+  const getVerifiedStyle = (isVerified: boolean) => {
+    return isVerified ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800";
   };
 
   const handleToggleVerification = async (id: string) => {
     try {
       const updatedUser = await toggleUserVerificationUseCase.execute(id);
-      console.log("Updated user from backend:", updatedUser); // Debug log
+      console.log("Updated user from backend:", updatedUser);
       onUserUpdate(updatedUser);
-      toast.success(updatedUser.isVerified ? "User unblocked" : "User blocked");
+      toast.success(updatedUser.isVerified ? "User verified" : "User unverified");
     } catch (error) {
       console.error("Failed to toggle user verification:", error);
-      toast.error("Failed to toggle user status", {
+      toast.error("Failed to toggle verification status", {
         position: "top-right",
         autoClose: 3000,
       });
@@ -54,47 +57,22 @@ const UserTable: React.FC<UserTableProps> = ({ users, onUserUpdate }) => {
 
   return (
     <div className="bg-white shadow rounded-lg mb-8 overflow-hidden">
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex flex-col sm:flex-row justify-between space-y-4 sm:space-y-0 sm:space-x-4 w-full">
-          <div className="flex-1 relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <i className="fas fa-search text-gray-400 text-sm"></i>
-            </div>
-            <input
-              type="text"
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-600 focus:border-indigo-600 sm:text-sm"
-              placeholder="Search users..."
-            />
-          </div>
-          <div className="flex space-x-4 sm:flex-row flex-col sm:w-auto w-full gap-4 sm:gap-0">
-            <select className="block w-full sm:w-40 py-2 px-3 border border-gray-300 rounded-md text-sm text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-600 focus:border-indigo-600">
-              <option>All Status</option>
-              <option>Active</option>
-              <option>Suspended</option>
-              <option>Expiring Soon</option>
-              <option>free-plan</option>
-            </select>
-            <select className="block w-full sm:w-40 py-2 px-3 border border-gray-300 rounded-md text-sm text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-600 focus:border-indigo-600">
-              <option>All Memberships</option>
-              <option>Basic</option>
-              <option>Premium</option>
-              <option>Elite</option>
-              <option>N/A</option>
-            </select>
-            <button className="rounded-md bg-indigo-600 px-4 py-2 text-white text-sm hover:bg-indigo-700 transition duration-150 ease-in-out w-full sm:w-auto">
-              <i className="fas fa-filter mr-2"></i>Apply Filters
-            </button>
-          </div>
-        </div>
-      </div>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200 table-fixed">
           <thead className="bg-gray-50">
             <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Membership</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                User
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Membership
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Verified
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -104,7 +82,11 @@ const UserTable: React.FC<UserTableProps> = ({ users, onUserUpdate }) => {
                   <div className="flex items-center">
                     <div className="flex-shrink-0 h-10 w-10">
                       {user.profilePic ? (
-                        <img className="h-10 w-10 rounded-full" src={`${backendUrl}${user.profilePic}`} alt={user.name || "User"} />
+                        <img
+                          className="h-10 w-10 rounded-full"
+                          src={`${backendUrl}${user.profilePic}`}
+                          alt={user.name || "User"}
+                        />
                       ) : (
                         <img className="h-10 w-10 rounded-full" src={defaultProfilePic} alt="Default" />
                       )}
@@ -116,13 +98,19 @@ const UserTable: React.FC<UserTableProps> = ({ users, onUserUpdate }) => {
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getMembershipStyle(user.membership)}`}>
-                    {user.membership || "N/A"}
+                  <span
+                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getMembershipStyle(
+                      user.membership
+                    )}`}
+                  >
+                    {user.membership || "None"}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusStyle(user.status)}`}>
-                    {user.status || "free-plan"}
+                  <span
+                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getVerifiedStyle(user.isVerified || false)}`}
+                  >
+                    {user.isVerified ? "Verified" : "Unverified"}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
