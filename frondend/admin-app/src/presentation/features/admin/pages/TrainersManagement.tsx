@@ -1,7 +1,7 @@
 
 // src/presentation/features/admin/pages/TrainerManagement.tsx
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+//import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import StatCard from "../components/StatCard";
 import { Trainer } from "../../../../domain/entities/admin/Trainer";
@@ -28,6 +28,8 @@ const TrainerManagement: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [specializationFilter, setSpecializationFilter] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedTrainer, setSelectedTrainer] = useState<Trainer | null>(null);
 
   const limit = 3;
   const backendUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
@@ -42,8 +44,7 @@ const TrainerManagement: React.FC = () => {
           limit,
           searchQuery || undefined,
           statusFilter || undefined,
-          specializationFilter || undefined,
-         
+          specializationFilter || undefined
         );
         setTrainers(response.trainers);
         setStats(response.stats);
@@ -84,8 +85,6 @@ const TrainerManagement: React.FC = () => {
     setPage(1);
   };
 
-
-
   const handleToggleApproval = async (trainerId: string, currentStatus: boolean) => {
     try {
       await approveTrainerUseCase.execute(trainerId);
@@ -95,8 +94,7 @@ const TrainerManagement: React.FC = () => {
         limit,
         searchQuery || undefined,
         statusFilter || undefined,
-        specializationFilter || undefined,
-     
+        specializationFilter || undefined
       );
       setTrainers(response.trainers);
       setStats(response.stats);
@@ -105,6 +103,16 @@ const TrainerManagement: React.FC = () => {
       console.error("Error toggling trainer approval:", error);
       toast.error(`Failed to ${currentStatus ? "unapprove" : "approve"} trainer`);
     }
+  };
+
+  const openModal = (trainer: Trainer) => {
+    setSelectedTrainer(trainer);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedTrainer(null);
   };
 
   const renderPagination = () => {
@@ -238,7 +246,6 @@ const TrainerManagement: React.FC = () => {
               <option value="Pilates">Pilates</option>
               <option value="Strength">Strength</option>
             </select>
-           
           </div>
         </div>
       </div>
@@ -285,16 +292,26 @@ const TrainerManagement: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <Link to={`/admin/trainers/${trainer.id}`} className="text-indigo-600 hover:text-indigo-900 mr-3">
-                      <i className="fas fa-eye"></i> View
-                    </Link>
-                    <button
-                      onClick={() => handleToggleApproval(trainer.id, trainer.verifiedByAdmin)}
-                      className={`mr-3 ${trainer.verifiedByAdmin ? "text-red-600 hover:text-red-900" : "text-green-600 hover:text-green-900"}`}
-                    >
-                      <i className={`fas ${trainer.verifiedByAdmin ? "fa-times" : "fa-check"}`}></i>
-                      {trainer.verifiedByAdmin ? " Unapprove" : " Approve"}
-                    </button>
+                    <div className="flex space-x-3">
+                      {/* <Link to={`/admin/trainers/${trainer.id}`} className="text-indigo-600 hover:text-indigo-900">
+                        <i className="fas fa-eye"></i> View
+                      </Link> */}
+                      <button
+                        onClick={() => openModal(trainer)}
+                        className="text-gray-400 hover:text-gray-500"
+                      >
+                       <i className="fas fa-eye"></i> View
+                      </button>
+                      <button
+                        onClick={() => handleToggleApproval(trainer.id, trainer.verifiedByAdmin)}
+                        className={`${
+                          trainer.verifiedByAdmin ? "text-red-600 hover:text-red-900" : "text-green-600 hover:text-green-900"
+                        }`}
+                      >
+                        <i className={`fas ${trainer.verifiedByAdmin ? "fa-times" : "fa-check"}`}></i>
+                        {trainer.verifiedByAdmin ? " Unapprove" : " Approve"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -303,6 +320,87 @@ const TrainerManagement: React.FC = () => {
         </div>
         {renderPagination()}
       </div>
+
+      {isModalOpen && selectedTrainer && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
+          <div className="relative mx-auto p-5 w-full max-w-4xl bg-white rounded-lg shadow-xl">
+            <div className="flex items-start justify-between p-4 border-b border-gray-200 rounded-t">
+              <h3 className="text-xl font-semibold text-gray-900">Trainer Details</h3>
+              <button
+                onClick={closeModal}
+                className="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-full text-sm p-1.5 border border-gray-300"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="flex space-x-4 mb-6">
+                <img
+                  src={selectedTrainer.profilePic ? `${backendUrl}${selectedTrainer.profilePic}` : defaultProfilePic}
+                  alt={selectedTrainer.name}
+                  className="w-1/2 h-48 object-cover rounded-lg"
+                />
+                <div className="w-1/2 space-y-4">
+                  <h4 className="font-semibold text-lg">{selectedTrainer.name}</h4>
+                  <p className="text-gray-600">{selectedTrainer.bio || "No bio available"}</p>
+                  <div className="flex items-center space-x-2">
+                    <i className="fas fa-envelope text-indigo-600"></i>
+                    <span className="text-gray-600">{selectedTrainer.email}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <i className="fas fa-graduation-cap text-indigo-600"></i>
+                    <span className="text-gray-600">{selectedTrainer.experienceLevel || "N/A"}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="border-t border-gray-200 pt-6">
+                <h5 className="font-semibold mb-4">Specialties</h5>
+                <div className="grid grid-cols-3 gap-4">
+                  {selectedTrainer.specialties?.length ? (
+                    selectedTrainer.specialties.map((specialty, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <i className="fas fa-dumbbell text-indigo-600"></i>
+                        <span>{specialty}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <span className="text-gray-500">No specialties listed</span>
+                  )}
+                </div>
+              </div>
+              <div className="border-t border-gray-200 pt-6">
+                <h5 className="font-semibold mb-4">Certifications</h5>
+                <div className="grid grid-cols-2 gap-4">
+                  {selectedTrainer.certifications?.length ? (
+                    selectedTrainer.certifications.map((cert, index) => (
+                      <div key={index} className="flex flex-col space-y-1">
+                        <div className="flex items-center space-x-2">
+                          <i className="fas fa-certificate text-indigo-600"></i>
+                          <span>{cert.name}</span>
+                        </div>
+                        <span className="text-sm text-gray-500">Issuer: {cert.issuer}</span>
+                        <span className="text-sm text-gray-500">
+                          Earned: {new Date(cert.dateEarned).toLocaleDateString()}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <span className="text-gray-500">No certifications listed</span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-end p-6 border-t border-gray-200 rounded-b">
+              <button
+                onClick={closeModal}
+                className="text-gray-500 bg-white hover:bg-gray-100 rounded-md border border-gray-300 text-sm font-medium px-5 py-2.5"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 };

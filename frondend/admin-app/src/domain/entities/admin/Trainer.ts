@@ -8,6 +8,8 @@ export interface Trainer {
   verifiedByAdmin: boolean;
   isVerified: boolean;
   profilePic?: string;
+   certifications?: { name: string; issuer: string; dateEarned: Date; filePath: string }[];
+    bio?: string;
 }
 
 export interface TrainerProfileData {
