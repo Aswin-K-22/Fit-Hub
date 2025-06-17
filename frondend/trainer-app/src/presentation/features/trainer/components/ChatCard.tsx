@@ -6,7 +6,9 @@ interface ChatCardProps {
   avatar: string;
 }
 
-const ChatCard: React.FC<ChatCardProps> = ({ name, status, avatar }) => (
+const ChatCard: React.FC<ChatCardProps> = ({ name, status, avatar }) => {
+   
+  return(
   <div className="flex items-center">
     <img className="h-10 w-10 rounded-full object-cover" src={avatar} alt={name} />
     <div className="ml-3">
@@ -15,6 +17,7 @@ const ChatCard: React.FC<ChatCardProps> = ({ name, status, avatar }) => (
     </div>
     <button className="ml-auto bg-indigo-600 text-white px-4 py-2 rounded-md">Chat</button>
   </div>
-);
+  
+)}
 
 export default ChatCard;

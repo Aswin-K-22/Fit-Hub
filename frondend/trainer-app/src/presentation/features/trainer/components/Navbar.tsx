@@ -86,7 +86,7 @@ const Navbar: React.FC = () => {
                   src={
                     trainer?.profilePic
                       ? `${import.meta.env.VITE_API_BASE_URL}${trainer.profilePic}`
-                      : "https://creatie.ai/ai/api/search-image?query=A%20professional%20headshot%20of%20a%20male%20fitness%20trainer%20with%20a%20friendly%20smile,%20wearing%20athletic%20attire,%20against%20a%20neutral%20studio%20background.%20The%20image%20should%20be%20well-lit%20and%20capture%20the%20subject%27s%20confident%20and%20approachable%20demeanor.&width=200&height=200&orientation=squarish&flag=17c37b32-d20a-4129-92b3-6ac4eb738e85"
+                      : "/images/trainer.png"
                   }
                   alt="Trainer"
                 />

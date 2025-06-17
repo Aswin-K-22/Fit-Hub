@@ -1,4 +1,3 @@
-// src/presentation/features/trainer/pages/TrainerProfile.tsx
 import React, { useState, useEffect, ChangeEvent, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import type { AppDispatch, RootState } from "../../../../infra/redux/store";
@@ -77,12 +76,15 @@ const TrainerProfile: React.FC = () => {
   const handleFileChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("Image size must be less than 5MB");
+      const validTypes = ["image/jpeg", "image/png"];
+      if (!validTypes.includes(file.type)) {
+        toast.error("Only JPEG or PNG images are allowed. Files like PDF or DOC are not permitted.");
+        e.target.value = "";
         return;
       }
-      if (!["image/jpeg", "image/png"].includes(file.type)) {
-        toast.error("Only JPEG or PNG images are allowed");
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image size must be less than 5MB");
+        e.target.value = "";
         return;
       }
       setEditedData((prev) => ({ ...prev, profilePic: file }));
@@ -115,22 +117,65 @@ const TrainerProfile: React.FC = () => {
       toast.error("Name is required");
       return false;
     }
+    if (editedData.name.length < 2 || editedData.name.length > 50) {
+      toast.error("Name must be between 2 and 50 characters");
+      return false;
+    }
+
+    if (editedData.bio && editedData.bio.length > 500) {
+      toast.error("Bio cannot exceed 500 characters");
+      return false;
+    }
+    if (!editedData.bio.trim()) {
+      toast.error("Give Bio descriotion");
+      return false;
+    }
+
     if (editedData.specialties.length === 0) {
       toast.error("At least one specialty is required");
       return false;
     }
-    if (editedData.upiId && !/^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/.test(editedData.upiId)) {
-      toast.error("Invalid UPI ID format");
+    if (editedData.specialties.length > 5) {
+      toast.error("Maximum 5 specialties allowed");
       return false;
     }
-    if (editedData.bankAccount && !/^\d{9,18}$/.test(editedData.bankAccount)) {
-      toast.error("Bank account number must be 9-18 digits");
+
+    if (editedData.upiId) {
+      const upiRegex = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
+      if (!upiRegex.test(editedData.upiId)) {
+        toast.error("Invalid UPI ID format (e.g., user@bank)");
+        return false;
+      }
+    }
+
+    if (editedData.bankAccount) {
+      const bankAccountRegex = /^\d{9,18}$/;
+      if (!bankAccountRegex.test(editedData.bankAccount)) {
+        toast.error("Bank account number must be 9-18 digits");
+        return false;
+      }
+      if (!editedData.ifscCode) {
+        toast.error("IFSC code is required when bank account is provided");
+        return false;
+      }
+    }
+
+    if (editedData.ifscCode) {
+      if (editedData.ifscCode.trim()) {
+        toast.error("Invalid IFSC code format1 (e.g., SBIN0001234)");
+        return false;
+      }
+      if (!editedData.bankAccount) {
+        toast.error("Bank account number is required when IFSC code is provided");
+        return false;
+      }
+    }
+
+    if (!editedData.upiId && !editedData.bankAccount && !editedData.ifscCode) {
+      toast.error("At least one payment method (UPI ID or Bank Details) is required");
       return false;
     }
-    if (editedData.ifscCode && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(editedData.ifscCode)) {
-      toast.error("Invalid IFSC code format");
-      return false;
-    }
+
     return true;
   }, [editedData]);
 
@@ -286,7 +331,7 @@ const TrainerProfile: React.FC = () => {
                     rows={4}
                     value={editedData.bio}
                     onChange={(e) => setEditedData((prev) => ({ ...prev, bio: e.target.value }))}
-                    className="mt-4 block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                    className="mt-4 block w-full rounded-md border border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 shadow-sm"
                     placeholder="Write your bio here..."
                     aria-label="Trainer bio"
                   />
@@ -327,7 +372,7 @@ const TrainerProfile: React.FC = () => {
                   {isEditing && (
                     <select
                       onChange={handleSpecialtyChange}
-                      className="w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                      className="w-full rounded-md border border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 shadow-sm"
                       aria-label="Add a specialty"
                     >
                       <option value="">Add specialty...</option>
@@ -344,8 +389,8 @@ const TrainerProfile: React.FC = () => {
 
             <div className="bg-white rounded-lg shadow">
               <div className="p-6">
-                <h3 className="text-lg font-medium text-gray-900">Payment Details</h3>
-                <div className="mt-4 space-y-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Payment Details</h3>
+                <div className="mt-4 space-y-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Rate (Admin Set)</label>
                     <p className="mt-1 text-gray-900">
@@ -366,7 +411,7 @@ const TrainerProfile: React.FC = () => {
                           type="text"
                           value={editedData.upiId}
                           onChange={(e) => setEditedData((prev) => ({ ...prev, upiId: e.target.value }))}
-                          className="mt-1 block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                          className="mt-1 block w-full rounded-md border border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 shadow-sm px-3 py-2 transition duration-150 ease-in-out"
                           placeholder="e.g., trainer@upi"
                           aria-label="UPI ID"
                         />
@@ -377,7 +422,7 @@ const TrainerProfile: React.FC = () => {
                           type="text"
                           value={editedData.bankAccount}
                           onChange={(e) => setEditedData((prev) => ({ ...prev, bankAccount: e.target.value }))}
-                          className="mt-1 block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                          className="mt-1 block w-full rounded-md border border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 shadow-sm px-3 py-2 transition duration-150 ease-in-out"
                           placeholder="e.g., 1234567890"
                           aria-label="Bank account number"
                         />
@@ -388,7 +433,7 @@ const TrainerProfile: React.FC = () => {
                           type="text"
                           value={editedData.ifscCode}
                           onChange={(e) => setEditedData((prev) => ({ ...prev, ifscCode: e.target.value }))}
-                          className="mt-1 block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                          className="mt-1 block w-full rounded-md border border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 shadow-sm px-3 py-2 transition duration-150 ease-in-out"
                           placeholder="e.g., SBIN0001234"
                           aria-label="IFSC code"
                         />

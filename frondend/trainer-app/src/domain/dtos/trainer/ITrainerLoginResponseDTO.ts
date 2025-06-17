@@ -1,7 +1,8 @@
 // src/domain/dtos/trainer/ITrainerLoginResponseDTO.ts
-import { UserAuth } from "../../../domain/entities/common/UserAuth";
+
+import { TrainerAuth } from "@/domain/entities/common/UserAuth";
 
 export interface ITrainerLoginResponseDTO {
 
-  trainer: UserAuth,
+  trainer: TrainerAuth,
 }

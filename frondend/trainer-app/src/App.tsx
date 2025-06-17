@@ -6,7 +6,7 @@ import { RootState } from "@/infra/redux/store";
 import { useAuthSession } from "@/infra/hooks/useAuthSession";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { TrainerLayout } from "./presentation/layouts/TrainerLayout";
+import TrainerLayout from "./presentation/layouts/TrainerLayout";
 
 // Lazy-loaded components
 const TrainerDashboard = React.lazy(() => import("@/presentation/features/trainer/pages/TrainerDashboard"));

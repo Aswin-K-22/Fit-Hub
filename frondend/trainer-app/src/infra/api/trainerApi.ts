@@ -1,5 +1,5 @@
 // src/infra/api/trainerApi.ts
-import axios from "axios";
+import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios";
 import { TrainerProfileData } from "../../domain/entities/trainer/Trainer";
 import { ITrainerRepository } from "../../app/repositories/ITrainerRepository";
 import { ITrainerLoginRequestDTO } from "../../domain/dtos/trainer/ITrainerLoginRequestDTO";
@@ -16,6 +16,82 @@ const apiClient = axios.create({
   withCredentials: true,
   headers: { "Content-Type": "application/json" },
 });
+
+
+const refreshClient = axios.create({
+  baseURL: "/api",
+  withCredentials: true,
+  headers: { "Content-Type": "application/json" },
+});
+
+interface QueueItem {
+  resolve: (value?: unknown) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  reject: (reason?: any) => void;
+}
+
+let isRefreshing = false;
+let failedQueue: QueueItem[] = [];
+
+const processQueue = (error: AxiosError | null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve();
+    }
+  });
+  failedQueue = [];
+};
+
+apiClient.interceptors.response.use(
+  (response: AxiosResponse) => response,
+  async (error: AxiosError) => {
+    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean } | undefined;
+
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes("/refresh-token")
+    ) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(() => apiClient(originalRequest))
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const refreshResponse = await refreshClient.post("/auth/rainer/refresh-token");
+        console.log("Trainer token refreshed successfully:", refreshResponse.data);
+        localStorage.setItem("TrainerData", JSON.stringify(refreshResponse.data.trainer));
+        isRefreshing = false;
+        processQueue(null);
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        console.error("Trainer token refresh failed:", refreshError);
+        isRefreshing = false;
+        processQueue(refreshError as AxiosError);
+        document.cookie = "accessToken=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
+        document.cookie = "refreshToken=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+export { apiClient, refreshClient };
+
+
+
+
 
 export const trainerLogin = async (email: string, password: string): Promise<ITrainerLoginResponseDTO> => {
   const response = await apiClient.post("/auth/trainer/login", { email, password });
@@ -90,13 +166,13 @@ export const getTrainerDashboardData = async (): Promise<ITrainerDashboardRespon
         name: "Sarah Johnson",
         type: "Strength Training",
         time: "9:00 AM - 10:00 AM",
-        avatar: "https://creatie.ai/ai/api/search-image?query=A%20professional%20headshot%20of%20a%20young%20woman%20in%20athletic%20wear,%20looking%20confident%20and%20energetic,%20against%20a%20clean%20studio%20background.%20The%20image%20should%20convey%20fitness%20and%20wellness.&width=200&height=200&orientation=squarish&flag=1a5a83ba-75bd-4237-b15a-187f1f4e9d05",
+        avatar: "/images/user.jpg",
       },
       {
         name: "David Miller",
         type: "HIIT Workout",
         time: "10:30 AM - 11:30 AM",
-        avatar: "https://creatie.ai/ai/api/search-image?query=A%20professional%20headshot%20of%20a%20middle-aged%20man%20in%20fitness%20attire,%20showing%20a%20determined%20expression,%20against%20a%20neutral%20background.%20The%20image%20should%20reflect%20dedication%20to%20fitness.&width=200&height=200&orientation=squarish&flag=93b9c1da-1a95-4b1b-94ae-a84013218191",
+       avatar: "/images/user.jpg",
       },
     ],
     notifications: [
@@ -104,8 +180,8 @@ export const getTrainerDashboardData = async (): Promise<ITrainerDashboardRespon
       { icon: "fa-check", text: "Session completed with John Davis", time: "1 hour ago", color: "text-green-600" },
     ],
     chats: [
-      { name: "Sarah Johnson", status: "Online", avatar: "https://creatie.ai/ai/api/search-image?query=A%20professional%20headshot%20of%20a%20young%20woman%20in%20athletic%20wear,%20looking%20confident%20and%20energetic,%20against%20a%20clean%20studio%20background.%20The%20image%20should%20convey%20fitness%20and%20wellness.&width=200&height=200&orientation=squarish&flag=1a5a83ba-75bd-4237-b15a-187f1f4e9d05" },
-      { name: "David Miller", status: "Last seen 5m ago", avatar: "https://creatie.ai/ai/api/search-image?query=A%20professional%20headshot%20of%20a%20middle-aged%20man%20in%20fitness%20attire,%20showing%20a%20determined%20expression,%20against%20a%20neutral%20background.%20The%20image%20should%20reflect%20dedication%20to%20fitness.&width=200&height=200&orientation=squarish&flag=93b9c1da-1a95-4b1b-94ae-a84013218191" },
+      { name: "Sarah Johnson", status: "Online", avatar: "/images/user.jpg", },
+      { name: "David Miller", status: "Last seen 5m ago",avatar: "/images/user.jpg", },
     ],
     performance: {
       days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],

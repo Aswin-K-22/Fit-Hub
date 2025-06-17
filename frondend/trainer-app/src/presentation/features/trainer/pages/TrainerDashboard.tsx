@@ -20,7 +20,7 @@ const TrainerDashboard: React.FC = () => {
   const { trainer } = useSelector((state: RootState) => state.auth);
   const [dashboardData, setDashboardData] = useState<ITrainerDashboardResponseDTO | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+ // const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -57,10 +57,10 @@ const TrainerDashboard: React.FC = () => {
     );
   }
 
-  if (error || !dashboardData) {
+  if ( !dashboardData) {
     return (
       <div className="text-center py-10 text-red-600">
-        {error || "Failed to load dashboard data"}
+        { "Failed to load dashboard data"}
       </div>
     );
   }
@@ -109,7 +109,7 @@ const TrainerDashboard: React.FC = () => {
                 src={
                   trainer?.profilePic
                     ? `${import.meta.env.VITE_API_BASE_URL}${trainer.profilePic}`
-                    : " /images/FithHubTrainerLoginPage.png"
+                    : " /images/trainer.png"
                 }
                 alt="Trainer"
                 onError={(e) => (e.currentTarget.src = "/images/user.jpg")}
