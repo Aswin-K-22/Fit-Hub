@@ -11,7 +11,7 @@ const UserManagement = React.lazy(() => import("@/presentation/features/admin/pa
 const DashboardView = React.lazy(() => import("@/presentation/features/admin/pages/DashboardView"));
 const Reports = React.lazy(() => import("@/presentation/features/admin/pages/Reports"));
 const Trainers = React.lazy(() => import("@/presentation/features/admin/pages/TrainersManagement"));
-const Gyms = React.lazy(() => import("@/presentation/features/admin/pages/Gyms"));
+const Gyms = React.lazy(() => import("@/presentation/features/admin/pages/GymsManagement"));
 const AddGymForm = React.lazy(() => import("@/presentation/features/admin/pages/AddGymForm"));
 const MembershipPlans = React.lazy(() => import("@/presentation/features/admin/pages/MembershipPlans"));
 const AddMembershipPlan = React.lazy(() => import("@/presentation/features/admin/pages/AddMembershipPlan"));

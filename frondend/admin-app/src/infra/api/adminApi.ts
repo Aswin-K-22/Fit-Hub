@@ -218,9 +218,50 @@ export const getPendingTrainers = async (page: number, limit: number): Promise<I
   return response.data;
 };
 
-export const getTrainers = async (page: number, limit: number, status?: string): Promise<IGetTrainersResponseDTO> => {
-  const response = await apiClient.get(`/admin/trainers`, { params: { page, limit, status } });
-  return response.data;
+export const getTrainers = async (
+  page: number = 1,
+  limit: number = 3,
+  search?: string,
+  status?: string,
+  specialization?: string,
+
+): Promise<IGetTrainersResponseDTO> => {
+  const response = await apiClient.get(`/admin/trainers`, {
+    params: {
+      page,
+      limit,
+      search,
+      status,
+      specialization,
+    
+      _t: Date.now(), // Prevent 304 responses
+    },
+    headers: {
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+    },
+  });
+  console.log("API response for trainers:", { search, status, specialization }, "Trainers:", response.data.trainers);
+  return {
+    trainers: response.data.trainers.map((trainer: any) => ({
+      id: trainer.id,
+      name: trainer.name || "N/A",
+      email: trainer.email,
+      specialties: trainer.specialties || [],
+      experienceLevel: trainer.experienceLevel || "N/A",
+      verifiedByAdmin: trainer.verifiedByAdmin ?? false,
+      isVerified: trainer.isVerified ?? false,
+      profilePic: trainer.profilePic || null,
+    })),
+    stats: {
+      totalTrainers: response.data.stats.totalTrainers || 0,
+      pendingApproval: response.data.stats.pendingApproval || 0,
+      activeTrainers: response.data.stats.activeTrainers || 0,
+      suspended: response.data.stats.suspended || 0,
+    },
+    totalPages: response.data.totalPages || 1,
+  };
 };
 
 export class AdminRepository implements IAdminRepository {
@@ -280,8 +321,15 @@ export class AdminRepository implements IAdminRepository {
     return getPendingTrainers(page, limit);
   }
 
-  async getTrainers(page: number, limit: number, status?: string): Promise<IGetTrainersResponseDTO> {
-    return getTrainers(page, limit, status);
+ async getTrainers(
+    page: number,
+    limit: number,
+    search?: string,
+    status?: string,
+    specialization?: string,
+   
+  ): Promise<IGetTrainersResponseDTO> {
+    return getTrainers(page, limit, search, status, specialization, );
   }
 
   async approveTrainer(trainerId: string): Promise<void> {

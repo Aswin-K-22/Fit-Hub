@@ -1,12 +1,13 @@
 // src/domain/entities/admin/Trainer.ts
 export interface Trainer {
+  id: string;
   name: string;
   email: string;
-  specialization: string;
-  experience: string;
-  rating: number;
-  status: "Active" | "Pending" | "Suspended";
-  avatar: string;
+  specialties: string[];
+  experienceLevel: string;
+  verifiedByAdmin: boolean;
+  isVerified: boolean;
+  profilePic?: string;
 }
 
 export interface TrainerProfileData {

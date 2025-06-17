@@ -1,3 +1,4 @@
+
 // src/presentation/features/admin/pages/TrainerManagement.tsx
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
@@ -25,7 +26,8 @@ const TrainerManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [specializationFilter, setSpecializationFilter] = useState("");
 
   const limit = 3;
   const backendUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
@@ -35,8 +37,14 @@ const TrainerManagement: React.FC = () => {
     const fetchTrainers = async () => {
       setLoading(true);
       try {
-        const status = statusFilter === "All" ? undefined : statusFilter;
-        const response = await getTrainersUseCase.execute(page, limit, status);
+        const response = await getTrainersUseCase.execute(
+          page,
+          limit,
+          searchQuery || undefined,
+          statusFilter || undefined,
+          specializationFilter || undefined,
+         
+        );
         setTrainers(response.trainers);
         setStats(response.stats);
         setTotalPages(response.totalPages);
@@ -52,7 +60,7 @@ const TrainerManagement: React.FC = () => {
       }
     };
     fetchTrainers();
-  }, [page, statusFilter]);
+  }, [page, searchQuery, statusFilter, specializationFilter]);
 
   const staticStats = {
     totalTrainers: 248,
@@ -61,27 +69,35 @@ const TrainerManagement: React.FC = () => {
     suspended: 0,
   };
 
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setPage(newPage);
-    }
-  };
-
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
+    setPage(1);
   };
 
   const handleStatusFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setStatusFilter(e.target.value);
-    setPage(1); // Reset to first page on filter change
+    setPage(1);
   };
+
+  const handleSpecializationFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSpecializationFilter(e.target.value);
+    setPage(1);
+  };
+
+
 
   const handleToggleApproval = async (trainerId: string, currentStatus: boolean) => {
     try {
-      await approveTrainerUseCase.execute(trainerId); // Toggles status
+      await approveTrainerUseCase.execute(trainerId);
       toast.success(`Trainer ${currentStatus ? "unapproved" : "approved"} successfully!`);
-      const status = statusFilter === "All" ? undefined : statusFilter;
-      const response = await getTrainersUseCase.execute(page, limit, status);
+      const response = await getTrainersUseCase.execute(
+        page,
+        limit,
+        searchQuery || undefined,
+        statusFilter || undefined,
+        specializationFilter || undefined,
+     
+      );
       setTrainers(response.trainers);
       setStats(response.stats);
       setTotalPages(response.totalPages);
@@ -91,10 +107,68 @@ const TrainerManagement: React.FC = () => {
     }
   };
 
-  const filteredTrainers = trainers.filter((trainer) =>
-    trainer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    trainer.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const renderPagination = () => {
+    const pageNumbers = [];
+    const maxPagesToShow = 5;
+    const startPage = Math.max(1, page - Math.floor(maxPagesToShow / 2));
+    const endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+
+    for (let i = startPage; i <= endPage; i++) {
+      pageNumbers.push(
+        <button
+          key={i}
+          onClick={() => setPage(i)}
+          className={`mx-1 px-3 py-1 rounded-full text-sm font-medium ${
+            page === i ? "bg-indigo-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+          }`}
+        >
+          {i}
+        </button>
+      );
+    }
+
+    return (
+      <div className="mt-4 flex justify-center items-center space-x-2">
+        <button
+          onClick={() => setPage(page - 1)}
+          disabled={page === 1}
+          className="px-3 py-1 rounded-full bg-gray-200 text-gray-700 disabled:opacity-50 hover:bg-gray-300"
+        >
+          <i className="fas fa-chevron-left"></i>
+        </button>
+        {startPage > 1 && (
+          <>
+            <button
+              onClick={() => setPage(1)}
+              className="mx-1 px-3 py-1 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300"
+            >
+              1
+            </button>
+            {startPage > 2 && <span className="text-gray-500">...</span>}
+          </>
+        )}
+        {pageNumbers}
+        {endPage < totalPages && (
+          <>
+            {endPage < totalPages - 1 && <span className="text-gray-500">...</span>}
+            <button
+              onClick={() => setPage(totalPages)}
+              className="mx-1 px-3 py-1 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300"
+            >
+              {totalPages}
+            </button>
+          </>
+        )}
+        <button
+          onClick={() => setPage(page + 1)}
+          disabled={page === totalPages}
+          className="px-3 py-1 rounded-full bg-gray-200 text-gray-700 disabled:opacity-50 hover:bg-gray-300"
+        >
+          <i className="fas fa-chevron-right"></i>
+        </button>
+      </div>
+    );
+  };
 
   if (loading) return <div className="text-center py-4">Loading...</div>;
   if (error) return <div className="text-center py-4">{error} (Showing fallback data)</div>;
@@ -104,50 +178,67 @@ const TrainerManagement: React.FC = () => {
       <div className="mb-8">
         <h1 className="text-2xl font-semibold text-gray-900">Trainer Management</h1>
         <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-4">
-          <StatCard title="Total Trainers" value={stats.totalTrainers} icon="fas fa-users" bgColor="bg-custom bg-opacity-10" textColor="text-custom" />
-          <StatCard title="Pending Approval" value={stats.pendingApproval} icon="fas fa-clock" bgColor="bg-yellow-100" textColor="text-yellow-600" />
-          <StatCard title="Active Trainers" value={stats.activeTrainers} icon="fas fa-check-circle" bgColor="bg-green-100" textColor="text-green-600" />
-          <StatCard title="Suspended" value={stats.suspended} icon="fas fa-ban" bgColor="bg-red-100" textColor="text-red-600" />
+          <StatCard
+            title="Total Trainers"
+            value={stats.totalTrainers}
+            icon="fas fa-users"
+            bgColor="bg-custom bg-opacity-10"
+            textColor="text-custom"
+          />
+          <StatCard
+            title="Pending Approval"
+            value={stats.pendingApproval}
+            icon="fas fa-clock"
+            bgColor="bg-yellow-100"
+            textColor="text-yellow-600"
+          />
+          <StatCard
+            title="Active Trainers"
+            value={stats.activeTrainers}
+            icon="fas fa-check-circle"
+            bgColor="bg-green-100"
+            textColor="text-green-600"
+          />
+          <StatCard
+            title="Suspended"
+            value={stats.suspended}
+            icon="fas fa-ban"
+            bgColor="bg-red-100"
+            textColor="text-red-600"
+          />
         </div>
       </div>
 
       <div className="bg-white shadow rounded-lg mb-8">
         <div className="px-4 py-5 sm:p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex-1 min-w-0">
-              <div className="relative rounded-md shadow-sm max-w-lg">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <i className="fas fa-search text-gray-400"></i>
-                </div>
-                <input
-                  type="text"
-                  className="focus:ring-custom focus:border-custom block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
-                  placeholder="Search trainers..."
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                />
-              </div>
-            </div>
-            <div className="mt-4 sm:mt-0 sm:ml-4 flex items-center space-x-3">
-              <select
-                value={statusFilter}
-                onChange={handleStatusFilterChange}
-                className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-custom focus:border-custom sm:text-sm rounded-md"
-              >
-                <option value="All">All Status</option>
-                <option value="Pending">Pending</option>
-                <option value="Approved">Approved</option>
-              </select>
-              <select className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-custom focus:border-custom sm:text-sm rounded-md">
-                <option>All Specializations</option>
-                <option>Cardio</option>
-                <option>Pilates</option>
-                <option>Strength</option>
-              </select>
-              <button className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-custom">
-                <i className="fas fa-filter mr-2"></i> More Filters
-              </button>
-            </div>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4">
+            <input
+              type="text"
+              placeholder="Search by name or email"
+              value={searchQuery}
+              onChange={handleSearchChange}
+              className="w-full sm:w-64 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <select
+              value={statusFilter}
+              onChange={handleStatusFilterChange}
+              className="w-full sm:w-48 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">All Status</option>
+              <option value="Pending">Pending</option>
+              <option value="Approved">Approved</option>
+            </select>
+            <select
+              value={specializationFilter}
+              onChange={handleSpecializationFilterChange}
+              className="w-full sm:w-48 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">All Specializations</option>
+              <option value="Cardio">Cardio</option>
+              <option value="Pilates">Pilates</option>
+              <option value="Strength">Strength</option>
+            </select>
+           
           </div>
         </div>
       </div>
@@ -165,7 +256,7 @@ const TrainerManagement: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredTrainers.map((trainer) => (
+              {trainers.map((trainer) => (
                 <tr key={trainer.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -182,7 +273,7 @@ const TrainerManagement: React.FC = () => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{trainer.specialties.join(", ")}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{trainer.specialties?.join(", ") || "N/A"}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{trainer.experienceLevel || "N/A"}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
@@ -210,48 +301,7 @@ const TrainerManagement: React.FC = () => {
             </tbody>
           </table>
         </div>
-        <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
-          <div className="flex items-center justify-between">
-            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-gray-700">
-                  Showing <span className="font-medium">{(page - 1) * limit + 1}</span> to{" "}
-                  <span className="font-medium">{Math.min(page * limit, stats.totalTrainers)}</span> of{" "}
-                  <span className="font-medium">{stats.totalTrainers}</span> results
-                </p>
-              </div>
-              <div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                  <button
-                    onClick={() => handlePageChange(page - 1)}
-                    disabled={page === 1}
-                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    <i className="fas fa-chevron-left"></i>
-                  </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                    <button
-                      key={p}
-                      onClick={() => handlePageChange(p)}
-                      className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium ${
-                        p === page ? "bg-custom text-white" : "bg-white text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      {p}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => handlePageChange(page + 1)}
-                    disabled={page === totalPages}
-                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    <i className="fas fa-chevron-right"></i>
-                  </button>
-                </nav>
-              </div>
-            </div>
-          </div>
-        </div>
+        {renderPagination()}
       </div>
     </main>
   );
