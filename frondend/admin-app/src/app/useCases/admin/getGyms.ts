@@ -5,7 +5,7 @@ import { IAdminRepository } from "../../repositories/IAdminRepository";
 export class GetGymsUseCase {
   constructor(private adminRepository: IAdminRepository) {}
 
-  async execute(page: number, limit: number): Promise<IGetGymsResponseDTO> {
-    return await this.adminRepository.getGyms(page, limit);
+  async execute(page: number, limit: number, search?: string): Promise<IGetGymsResponseDTO> {
+    return await this.adminRepository.getGyms(page, limit, search);
   }
 }

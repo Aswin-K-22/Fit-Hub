@@ -162,7 +162,7 @@ const AddMembershipPlan: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700">Price</label>
                     <div className="mt-1 relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <span className="text-gray-500 sm:text-sm">$</span>
+                        <span className="text-gray-500 sm:text-sm">₹</span>
                       </div>
                       <input
                         type="number"
@@ -222,7 +222,7 @@ const AddMembershipPlan: React.FC = () => {
                 <div className="border rounded-lg p-4">
                   <h4 className="text-xl font-semibold text-gray-900">{formData.planName}</h4>
                   <p className="mt-2 text-3xl font-bold text-indigo-600">
-                    ${formData.price.toFixed(2)}
+                    ₹{formData.price.toFixed(2)}
                     <span className="text-base font-normal text-gray-500">/month</span>
                   </p>
                   <p className="mt-4 text-gray-500">

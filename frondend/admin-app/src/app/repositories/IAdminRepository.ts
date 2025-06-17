@@ -31,7 +31,7 @@ export interface IAdminRepository {
   toggleUserVerification(userId: string): Promise<User>;
   addGym(data: FormData): Promise<any>;
   getAvailableTrainers(): Promise<{ id: string; name: string; active: boolean }[]>;
-  getGyms(page: number, limit: number): Promise<IGetGymsResponseDTO>;
+  getGyms(page: number, limit: number, search?: string): Promise<IGetGymsResponseDTO>;
   getTrainers(
     page: number,
     limit: number,

@@ -93,7 +93,7 @@ const MembershipPlans: React.FC = () => {
               </div>
             </div>
             <button
-              onClick={() => navigate("/admin/subscriptions/add")}
+              onClick={() => navigate("/subscriptions/add")}
               className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 flex items-center justify-center"
             >
               <i className="fas fa-plus mr-2"></i>
@@ -130,7 +130,7 @@ const MembershipPlans: React.FC = () => {
                         <div className="text-sm text-gray-500">{plan.description}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">${plan.price.toFixed(2)}</div>
+                        <div className="text-sm text-gray-900">₹{plan.price.toFixed(2)}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">

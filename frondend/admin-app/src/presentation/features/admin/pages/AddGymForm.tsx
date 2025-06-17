@@ -1,3 +1,5 @@
+
+// src/presentation/features/admin/pages/AddGymForm.tsx
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useReducer, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -74,7 +76,7 @@ const gymSchema = z.object({
   trainers: z.array(
     z.object({
       trainerId: z.string(),
-      active: z.boolean().default(true),
+      active: z.boolean(),
     })
   ),
   images: z.array(z.instanceof(File))
@@ -86,7 +88,7 @@ const gymSchema = z.object({
 type GymFormData = z.infer<typeof gymSchema>;
 
 type FormState = Omit<IAddGymRequestDTO, "images"> & {
-  images: string[];
+  images: File[];
   newEquipment: { type: string; category: string; quantity: number; condition: string };
   imageFiles: File[];
 };
@@ -95,7 +97,7 @@ type FormAction =
   | { type: "UPDATE_FIELD"; field: keyof FormState; value: any }
   | { type: "ADD_EQUIPMENT" }
   | { type: "DELETE_EQUIPMENT"; index: number }
-  | { type: "ADD_IMAGE"; images: string[]; files: File[] }
+  | { type: "ADD_IMAGE"; images: File[]; files: File[] }
   | { type: "REMOVE_IMAGE"; index: number }
   | { type: "ADD_TRAINER"; trainer: { trainerId: string; active: boolean } }
   | { type: "REMOVE_TRAINER"; index: number }
@@ -166,7 +168,10 @@ const AddGymForm: React.FC = () => {
     trigger,
   } = useForm<GymFormData>({
     resolver: zodResolver(gymSchema),
-    defaultValues: state,
+    defaultValues: {
+      ...state,
+      images: [],
+    },
     mode: "onChange",
   });
 
@@ -273,8 +278,7 @@ const AddGymForm: React.FC = () => {
       }
 
       if (validFiles.length > 0) {
-        const newImages = validFiles.map((file) => URL.createObjectURL(file));
-        dispatch({ type: "ADD_IMAGE", images: newImages, files: validFiles });
+        dispatch({ type: "ADD_IMAGE", images: validFiles, files: validFiles });
         setValue("images", [...state.imageFiles, ...validFiles]); 
         trigger("images");
         toast.success("Valid images uploaded!");
@@ -350,7 +354,7 @@ const AddGymForm: React.FC = () => {
           <div className="flex space-x-3">
             <Link
               to="/admin/gyms"
-              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-lg font-medium text-gray-700 bg-white hover:bg-gray-50 rounded-md"
+              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 rounded-md"
             >
               Cancel
             </Link>
@@ -358,7 +362,7 @@ const AddGymForm: React.FC = () => {
               onClick={handleSubmit(onSubmit)}
               disabled={!isValid || isSubmitting}
               className={`inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium text-white rounded-md ${
-                isValid && !isSubmitting ? "bg-custom hover:bg-custom-dark" : "bg-gray-400 cursor-not-allowed"
+                isValid && !isSubmitting ? "bg-indigo-600 hover:bg-indigo-700" : "bg-gray-400 cursor-not-allowed"
               }`}
             >
               {isSubmitting ? "Saving..." : "Save Gym"}
@@ -382,7 +386,7 @@ const AddGymForm: React.FC = () => {
                     render={({ field }) => (
                       <input
                         {...field}
-                        className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-custom focus:border-custom ${
+                        className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
                           errors.name ? "border-red-500" : "border-gray-300"
                         }`}
                         placeholder="Enter gym name"
@@ -413,7 +417,7 @@ const AddGymForm: React.FC = () => {
                     render={({ field }) => (
                       <select
                         {...field}
-                        className={`mt-1 block w-full border p-2 rounded-md shadow-sm focus:ring-custom focus:border-custom ${
+                        className={`mt-1 block w-full border p-2 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
                           errors.type ? "border-red-500" : "border-gray-300"
                         }`}
                         onChange={(e) => {
@@ -442,7 +446,7 @@ const AddGymForm: React.FC = () => {
                       <textarea
                         {...field}
                         rows={4}
-                        className={`mt-1 block p-2 w-full border rounded-md shadow-sm focus:ring-custom focus:border-custom ${
+                        className={`mt-1 block p-2 w-full border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
                           errors.description ? "border-red-500" : "border-gray-300"
                         }`}
                         placeholder="Enter gym description"
@@ -488,7 +492,7 @@ const AddGymForm: React.FC = () => {
                       render={({ field }) => (
                         <input
                           {...field}
-                          className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-custom focus:border-custom ${
+                          className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
                             errors.address?.street ? "border-red-500" : "border-gray-300"
                           }`}
                           placeholder="Enter street address"
@@ -529,7 +533,7 @@ const AddGymForm: React.FC = () => {
                       render={({ field }) => (
                         <input
                           {...field}
-                          className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-custom focus:border-custom ${
+                          className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
                             errors.address?.city ? "border-red-500" : "border-gray-300"
                           }`}
                           placeholder="Enter city"
@@ -570,7 +574,7 @@ const AddGymForm: React.FC = () => {
                       render={({ field }) => (
                         <input
                           {...field}
-                          className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-custom focus:border-custom ${
+                          className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
                             errors.address?.state ? "border-red-500" : "border-gray-300"
                           }`}
                           placeholder="Enter state"
@@ -611,7 +615,7 @@ const AddGymForm: React.FC = () => {
                       render={({ field }) => (
                         <input
                           {...field}
-                          className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-custom focus:border-custom ${
+                          className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
                             errors.address?.postalCode ? "border-red-500" : "border-gray-300"
                           }`}
                           placeholder="Enter postal code"
@@ -646,7 +650,7 @@ const AddGymForm: React.FC = () => {
                 <button
                   type="button"
                   onClick={getCoordinates}
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium text-white bg-custom hover:bg-custom-dark rounded-md"
+                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md"
                 >
                   Get Coordinates
                 </button>
@@ -715,7 +719,7 @@ const AddGymForm: React.FC = () => {
                       <input
                         {...field}
                         type="tel"
-                        className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-custom focus:border-custom ${
+                        className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
                           errors.contact?.phone ? "border-red-500" : "border-gray-300"
                         }`}
                         placeholder="+1 (555) 000-0000"
@@ -757,7 +761,7 @@ const AddGymForm: React.FC = () => {
                       <input
                         {...field}
                         type="email"
-                        className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-custom focus:border-custom ${
+                        className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
                           errors.contact?.email ? "border-red-500" : "border-gray-300"
                         }`}
                         placeholder="gym@example.com"
@@ -796,28 +800,29 @@ const AddGymForm: React.FC = () => {
                     render={({ field }) => (
                       <input
                         {...field}
+                        value={field.value || ""}
                         type="url"
-                        className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-custom focus:border-custom ${
+                        className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
                           errors.contact?.website ? "border-red-500" : "border-gray-300"
                         }`}
                         placeholder="https://www.example.com"
                         onChange={(e) => {
                           const trimmedValue = e.target.value.trimStart();
-                          field.onChange(trimmedValue);
+                          field.onChange(trimmedValue || undefined);
                           dispatch({
                             type: "UPDATE_FIELD",
                             field: "contact",
-                            value: { ...state.contact, website: trimmedValue },
+                            value: { ...state.contact, website: trimmedValue || undefined },
                           });
                           trigger("contact.website");
                         }}
                         onBlur={() => {
-                          const trimmedValue = field.value.trim();
-                          field.onChange(trimmedValue);
+                          const trimmedValue = (field.value || "").trim();
+                          field.onChange(trimmedValue || undefined);
                           dispatch({
                             type: "UPDATE_FIELD",
                             field: "contact",
-                            value: { ...state.contact, website: trimmedValue },
+                            value: { ...state.contact, website: trimmedValue || undefined },
                           });
                           trigger("contact.website");
                         }}
@@ -846,7 +851,7 @@ const AddGymForm: React.FC = () => {
                           type="checkbox"
                           checked={state.facilities?.includes(facility) || false}
                           onChange={() => handleFacilityChange(facility)}
-                          className="rounded border-gray-300 text-custom focus:ring-custom"
+                          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                         />
                         <span className="text-md text-gray-700">{facility}</span>
                       </label>
@@ -866,7 +871,7 @@ const AddGymForm: React.FC = () => {
                         onChange={(e) =>
                           dispatch({ type: "UPDATE_NEW_EQUIPMENT", field: "type", value: e.target.value.trimStart() })
                         }
-                        className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-custom focus:border-custom"
+                        className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                         placeholder="e.g., Treadmill"
                       />
                     </div>
@@ -877,7 +882,7 @@ const AddGymForm: React.FC = () => {
                         onChange={(e) =>
                           dispatch({ type: "UPDATE_NEW_EQUIPMENT", field: "category", value: e.target.value })
                         }
-                        className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-custom focus:border-custom"
+                        className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                       >
                         <option value="">Select Category</option>
                         <option>Cardio</option>
@@ -897,7 +902,7 @@ const AddGymForm: React.FC = () => {
                             value: parseInt(e.target.value) || 0,
                           })
                         }
-                        className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-custom focus:border-custom"
+                        className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                         placeholder="e.g., 10"
                       />
                     </div>
@@ -908,7 +913,7 @@ const AddGymForm: React.FC = () => {
                         onChange={(e) =>
                           dispatch({ type: "UPDATE_NEW_EQUIPMENT", field: "condition", value: e.target.value })
                         }
-                        className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-custom focus:border-custom"
+                        className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                       >
                         <option value="">Select Condition</option>
                         <option>Excellent</option>
@@ -920,7 +925,7 @@ const AddGymForm: React.FC = () => {
                   <button
                     type="button"
                     onClick={addEquipment}
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium text-white bg-custom hover:bg-custom-dark rounded-md"
+                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md"
                   >
                     <i className="fas fa-plus mr-2"></i> Add Equipment
                   </button>
@@ -995,7 +1000,7 @@ const AddGymForm: React.FC = () => {
                           });
                           trigger("maxCapacity");
                         }}
-                        className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-custom focus:border-custom ${
+                        className={`mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
                           errors.maxCapacity ? "border-red-500" : "border-gray-300"
                         }`}
                         placeholder="e.g., 100"
@@ -1042,7 +1047,9 @@ const AddGymForm: React.FC = () => {
                                 <input
                                   {...field}
                                   type="time"
-                                  className="border p-2 border-gray-300 rounded-md shadow-sm focus:ring-custom focus:border-custom"
+                                  className={`border p-2 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
+                                    errors.schedule?.[index]?.startTime ? "border-red-500" : "border-gray-300"
+                                  }`}
                                   onChange={(e) => {
                                     field.onChange(e);
                                     dispatch({
@@ -1057,6 +1064,9 @@ const AddGymForm: React.FC = () => {
                                 />
                               )}
                             />
+                            {errors.schedule?.[index]?.startTime && (
+                              <p className="text-red-500 text-sm mt-1">{errors.schedule[index].startTime.message}</p>
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <Controller
@@ -1066,7 +1076,9 @@ const AddGymForm: React.FC = () => {
                                 <input
                                   {...field}
                                   type="time"
-                                  className="border border-gray-300 p-2 rounded-md shadow-sm focus:ring-custom focus:border-custom"
+                                  className={`border p-2 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
+                                    errors.schedule?.[index]?.endTime ? "border-red-500" : "border-gray-300"
+                                  }`}
                                   onChange={(e) => {
                                     field.onChange(e);
                                     dispatch({
@@ -1081,6 +1093,9 @@ const AddGymForm: React.FC = () => {
                                 />
                               )}
                             />
+                            {errors.schedule?.[index]?.endTime && (
+                              <p className="text-red-500 text-sm mt-1">{errors.schedule[index].endTime.message}</p>
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <Controller
@@ -1101,7 +1116,7 @@ const AddGymForm: React.FC = () => {
                                     });
                                     trigger(`schedule.${index}.isClosed`);
                                   }}
-                                  className="rounded border-gray-300 text-custom focus:ring-custom"
+                                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                                 />
                               )}
                             />
@@ -1126,7 +1141,7 @@ const AddGymForm: React.FC = () => {
                                     });
                                     trigger(`schedule.${index}.slotDuration`);
                                   }}
-                                  className={`border p-2 rounded-md shadow-sm focus:ring-custom focus:border-custom ${
+                                  className={`border p-2 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
                                     errors.schedule?.[index]?.slotDuration ? "border-red-500" : "border-gray-300"
                                   }`}
                                   placeholder="e.g., 60"
@@ -1157,7 +1172,7 @@ const AddGymForm: React.FC = () => {
                                     });
                                     trigger(`schedule.${index}.slotCapacity`);
                                   }}
-                                  className={`border p-2 rounded-md shadow-sm focus:ring-custom focus:border-custom ${
+                                  className={`border p-2 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
                                     errors.schedule?.[index]?.slotCapacity ? "border-red-500" : "border-gray-300"
                                   }`}
                                   placeholder="e.g., 40"
@@ -1192,23 +1207,27 @@ const AddGymForm: React.FC = () => {
                     id="imageUpload"
                   />
                   <label htmlFor="imageUpload" className="cursor-pointer">
-                    <i className="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-3"></i>
-                    <p className="text-sm text-gray-500">Drag and drop images here, or click to select files</p>
+                    <i className="fas fa-cloud-upload-alt text-4xl text-gray-500 mb-3"></i>
+                    <p className="text-sm text-gray-600">Drag and drop images here, or click to select files</p>
                     <p className="text-xs text-gray-400 mt-1">Only PNG and JPEG up to 5MB</p>
                   </label>
                 </div>
                 {errors.images && (
                   <p className="text-red-500 text-sm mt-1">{errors.images.message}</p>
                 )}
-                <div className="grid grid-cols-4 gap-4">
-                  {state.images.map((image, index) => (
-                    <div key={index} className="relative rounded-lg overflow-hidden">
-                      <img src={image} alt="Gym Interior" className="w-full h-40 object-cover" />
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {state.images.map((file, index) => (
+                    <div key={index} className="relative rounded-lg overflow-hidden group">
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt={`Gym Image ${index + 1}`}
+                        className="w-full h-40 object-cover transition-transform duration-200 group-hover:scale-105"
+                      />
                       <button
                         onClick={() => removeImage(index)}
-                        className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-sm"
+                        className="absolute top-2 right-2 bg-white/80 rounded-full p-1.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-white"
                       >
-                        <i className="fas fa-times text-gray-500"></i>
+                        <i className="fas fa-times text-gray-600 text-sm"></i>
                       </button>
                     </div>
                   ))}
@@ -1226,7 +1245,7 @@ const AddGymForm: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-3">Assign Trainers</label>
                   <select
                     onChange={handleTrainerChange}
-                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-custom focus:border-custom"
+                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                   >
                     <option value="">Select a trainer...</option>
                     {trainersList.map((trainer) => (
@@ -1311,7 +1330,7 @@ const AddGymForm: React.FC = () => {
                 onClick={handleSubmit(onSubmit)}
                 disabled={!isValid || isSubmitting}
                 className={`inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium text-white rounded-md ${
-                  isValid && !isSubmitting ? "bg-custom hover:bg-custom-dark" : "bg-gray-400 cursor-not-allowed"
+                  isValid && !isSubmitting ? "bg-indigo-600 hover:bg-indigo-700" : "bg-gray-400 cursor-not-allowed"
                 }`}
               >
                 {isSubmitting ? "Publishing..." : "Publish Gym"}

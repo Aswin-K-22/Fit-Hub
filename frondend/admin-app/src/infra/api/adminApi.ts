@@ -167,9 +167,35 @@ export const getAvailableTrainers = async (): Promise<{ id: string; name: string
   return response.data.trainers; 
 };
 
-export const getGyms = async (page: number, limit: number): Promise<IGetGymsResponseDTO>=>{
-  const response = await apiClient.get(`/admin/gyms?page=${page}&limit=${limit}`);
-  return response.data;
+export const getGyms = async (page: number, limit: number, search?: string): Promise<IGetGymsResponseDTO> => {
+  const response = await apiClient.get("/admin/gyms", {
+    params: {
+      page,
+      limit,
+      search,
+      _t: Date.now(), // Prevent 304 responses
+    },
+    headers: {
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+    },
+  });
+  console.log("API response for gyms:", { search }, "Gyms:", response.data.gyms);
+  return {
+    gyms: response.data.gyms.map((gym: any) => ({
+      id: gym.id,
+      name: gym.name || "N/A",
+      description: gym.description || "N/A",
+      address: gym.address || {},
+      contact: gym.contact || {},
+      images: gym.images || [],
+      ratings: gym.ratings || {},
+      facilities: gym.facilities || {},
+    })),
+    total: response.data.total || 0,
+    totalPages: response.data.totalPages || 1,
+  };
 };
 
 export const trainersList = async (page: number, limit: number) => {
@@ -201,7 +227,7 @@ export const toggleUserVerification = async (id: string): Promise<User> => {
 };
 
 export const getMembershipPlans = async (page: number, limit: number): Promise<IGetMembershipPlansResponseDTO> => {
-  const response = await apiClient.get("/admin/subscriptions", {
+  const response = await apiClient.get("/admin/membership-plans", {
     params: { page, limit },
   });
   return response.data;
@@ -287,14 +313,11 @@ export class AdminRepository implements IAdminRepository {
     return toggleUserVerification(userId);
   }
 
-  // async addTrainer(data: IAddTrainerDataDTO): Promise<any> {
-  //   return addTrainer(data);
-  // }
+  
 
 
-
-  async getGyms(page: number, limit: number): Promise<IGetGymsResponseDTO> {
-    return getGyms(page, limit);
+ async getGyms(page: number, limit: number, search?: string): Promise<IGetGymsResponseDTO> {
+    return getGyms(page, limit, search);
   }
 
 
