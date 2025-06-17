@@ -1,5 +1,4 @@
-// src/presentation/features/admin/pages/MembershipPlans.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { MembershipPlan } from "../../../../domain/entities/common/MembershipPlan";
@@ -11,7 +10,6 @@ const getMembershipPlansUseCase = new GetMembershipPlansUseCase(adminRepository)
 
 const MembershipPlans: React.FC = () => {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState("");
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -45,17 +43,72 @@ const MembershipPlans: React.FC = () => {
     loadPlans();
   }, [page]);
 
-  const filteredPlans = plans.filter(
-    (plan) =>
-      plan.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      plan.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handlePageChange = useCallback((newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) setPage(newPage);
+  }, [totalPages]);
 
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setPage(newPage);
+  const renderPagination = useCallback(() => {
+    const pageNumbers = [];
+    const maxPagesToShow = 5;
+    const startPage = Math.max(1, page - Math.floor(maxPagesToShow / 2));
+    const endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+
+    for (let i = startPage; i <= endPage; i++) {
+      pageNumbers.push(
+        <button
+          key={i}
+          onClick={() => handlePageChange(i)}
+          className={`mx-1 px-3 py-1 rounded-full text-sm font-medium ${
+            page === i ? "bg-indigo-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+          }`}
+        >
+          {i}
+        </button>
+      );
     }
-  };
+
+    return (
+      <div className="mt-4 flex justify-center items-center space-x-2">
+        <button
+          onClick={() => handlePageChange(page - 1)}
+          disabled={page === 1}
+          className="px-3 py-1 rounded-full bg-gray-200 text-gray-700 disabled:opacity-50 hover:bg-gray-300"
+        >
+          <i className="fas fa-chevron-left"></i>
+        </button>
+        {startPage > 1 && (
+          <>
+            <button
+              onClick={() => handlePageChange(1)}
+              className="mx-1 px-3 py-1 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300"
+            >
+              1
+            </button>
+            {startPage > 2 && <span className="text-gray-500">...</span>}
+          </>
+        )}
+        {pageNumbers}
+        {endPage < totalPages && (
+          <>
+            {endPage < totalPages - 1 && <span className="text-gray-500">...</span>}
+            <button
+              onClick={() => handlePageChange(totalPages)}
+              className="mx-1 px-3 py-1 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300"
+            >
+              {totalPages}
+            </button>
+          </>
+        )}
+        <button
+          onClick={() => handlePageChange(page + 1)}
+          disabled={page === totalPages}
+          className="px-3 py-1 rounded-full bg-gray-200 text-gray-700 disabled:opacity-50 hover:bg-gray-300"
+        >
+          <i className="fas fa-chevron-right"></i>
+        </button>
+      </div>
+    );
+  }, [page, totalPages, handlePageChange]);
 
   return (
     <main className="py-6 px-4 sm:px-6 lg:px-8 max-w-8xl mx-auto">
@@ -79,19 +132,7 @@ const MembershipPlans: React.FC = () => {
       {/* Plans Table Section */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="p-6 border-b border-gray-200">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-            <div className="w-full sm:w-64 mb-4 sm:mb-0">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search plans..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-600 focus:border-indigo-600"
-                />
-                <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-              </div>
-            </div>
+          <div className="flex justify-end">
             <button
               onClick={() => navigate("/subscriptions/add")}
               className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 flex items-center justify-center"
@@ -107,9 +148,9 @@ const MembershipPlans: React.FC = () => {
             <div className="text-center py-4">Loading...</div>
           ) : (
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-bg-gray-50">
                 <tr>
-                  {["Name", "Description", "Price", "Duration", "Features", "Actions"].map((header) => (
+                  {["Name", "Description", "Price", "Duration", "Features"].map((header) => (
                     <th
                       key={header}
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -120,8 +161,8 @@ const MembershipPlans: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredPlans.length > 0 ? (
-                  filteredPlans.map((plan) => (
+                {plans.length > 0 ? (
+                  plans.map((plan) => (
                     <tr key={plan.id}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{plan.name}</div>
@@ -149,19 +190,11 @@ const MembershipPlans: React.FC = () => {
                           ))}
                         </ul>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button className="text-indigo-600 hover:text-indigo-800 mr-3">
-                          <i className="fas fa-edit"></i>
-                        </button>
-                        <button className="text-red-600 hover:text-red-800">
-                          <i className="fas fa-trash"></i>
-                        </button>
-                      </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                    <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
                       No plans found
                     </td>
                   </tr>
@@ -172,46 +205,7 @@ const MembershipPlans: React.FC = () => {
         </div>
 
         {/* Pagination */}
-        <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700">
-                Showing <span className="font-medium">{(page - 1) * limit + 1}</span> to{" "}
-                <span className="font-medium">{Math.min(page * limit, totalPlans)}</span> of{" "}
-                <span className="font-medium">{totalPlans}</span> results
-              </p>
-            </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md -space-x-px" aria-label="Pagination">
-                <button
-                  onClick={() => handlePageChange(page - 1)}
-                  disabled={page === 1}
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:bg-gray-200"
-                >
-                  <i className="fas fa-chevron-left"></i>
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-                  <button
-                    key={pageNum}
-                    onClick={() => handlePageChange(pageNum)}
-                    className={`relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium ${
-                      page === pageNum ? "text-indigo-600 bg-indigo-50" : "text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                ))}
-                <button
-                  onClick={() => handlePageChange(page + 1)}
-                  disabled={page === totalPages}
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:bg-gray-200"
-                >
-                  <i className="fas fa-chevron-right"></i>
-                </button>
-              </nav>
-            </div>
-          </div>
-        </div>
+        {renderPagination()}
       </div>
     </main>
   );

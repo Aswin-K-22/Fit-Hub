@@ -1,6 +1,6 @@
 // src/domain/dtos/admin/IAddMembershipPlanRequestDTO.ts
 export interface IAddMembershipPlanRequestDTO {
-  planName: "Premium" | "Basic" | "Diamond";
+  name: "Premium" | "Basic" | "Diamond";
   description: string;
   price: number; // Changed to number for consistency
   duration: number; // Changed to number (months)
